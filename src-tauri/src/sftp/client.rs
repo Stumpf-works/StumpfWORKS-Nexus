@@ -28,16 +28,16 @@ impl SftpClient {
         let mut entries = Vec::new();
 
         for entry in entries_result {
-            let attrs = entry.attrs();
-            let is_dir = attrs.is_dir();
-            let size = attrs.size.unwrap_or(0);
-            let modified = attrs.mtime.map(|t| {
+            let metadata = entry.metadata();
+            let is_dir = metadata.is_dir();
+            let size = metadata.len().unwrap_or(0);
+            let modified = metadata.modified().map(|t| {
                 chrono::DateTime::from_timestamp(t as i64, 0)
                     .unwrap_or_else(|| Utc::now())
             });
 
-            let permissions = if let Some(perms) = attrs.permissions {
-                Some(format_permissions(perms, is_dir))
+            let permissions = if let Some(perms) = metadata.permissions() {
+                Some(format_permissions(perms.mode(), is_dir))
             } else {
                 None
             };

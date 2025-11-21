@@ -11,21 +11,15 @@ pub async fn list_directory(session_id: String, path: String) -> Result<Vec<File
 
     tracing::info!("Listing directory: {} for session {}", path, session_id);
 
-    // For now, return error if no SFTP session exists
-    // TODO: Auto-create SFTP session from SSH connection
-    let sftp_mgr = manager().read();
-    if !sftp_mgr.has_session(&session_uuid) {
-        drop(sftp_mgr);
-        return Err(SftpError::NotConnected);
-    }
+    // Get client and drop lock before await
+    let client = {
+        let sftp_mgr = manager().read();
+        sftp_mgr
+            .get_client(&session_uuid)
+            .ok_or_else(|| SftpError::NotConnected)?
+    }; // Lock is dropped here
 
-    let client = sftp_mgr
-        .get_client(&session_uuid)
-        .ok_or_else(|| SftpError::NotConnected)?;
-
-    let result = client.list_dir(&path).await;
-    drop(sftp_mgr); // Drop before returning
-    result
+    client.list_dir(&path).await
 }
 
 /// Upload a file to the remote server
@@ -45,14 +39,14 @@ pub async fn upload_file(
         session_id
     );
 
-    let sftp_mgr = manager().read();
-    let client = sftp_mgr
-        .get_client(&session_uuid)
-        .ok_or_else(|| SftpError::NotConnected)?;
+    let client = {
+        let sftp_mgr = manager().read();
+        sftp_mgr
+            .get_client(&session_uuid)
+            .ok_or_else(|| SftpError::NotConnected)?
+    };
 
-    let result = client.upload(&local_path, &remote_path, None).await;
-    drop(sftp_mgr);
-    result
+    client.upload(&local_path, &remote_path, None).await
 }
 
 /// Download a file from the remote server
@@ -72,14 +66,14 @@ pub async fn download_file(
         session_id
     );
 
-    let sftp_mgr = manager().read();
-    let client = sftp_mgr
-        .get_client(&session_uuid)
-        .ok_or_else(|| SftpError::NotConnected)?;
+    let client = {
+        let sftp_mgr = manager().read();
+        sftp_mgr
+            .get_client(&session_uuid)
+            .ok_or_else(|| SftpError::NotConnected)?
+    };
 
-    let result = client.download(&remote_path, &local_path, None).await;
-    drop(sftp_mgr);
-    result
+    client.download(&remote_path, &local_path, None).await
 }
 
 /// Delete a file or directory
@@ -90,18 +84,18 @@ pub async fn delete_path(session_id: String, path: String, is_dir: bool) -> Resu
 
     tracing::info!("Deleting {} for session {}", path, session_id);
 
-    let sftp_mgr = manager().read();
-    let client = sftp_mgr
-        .get_client(&session_uuid)
-        .ok_or_else(|| SftpError::NotConnected)?;
+    let client = {
+        let sftp_mgr = manager().read();
+        sftp_mgr
+            .get_client(&session_uuid)
+            .ok_or_else(|| SftpError::NotConnected)?
+    };
 
-    let result = if is_dir {
+    if is_dir {
         client.rmdir(&path).await
     } else {
         client.remove(&path).await
-    };
-    drop(sftp_mgr);
-    result
+    }
 }
 
 /// Create a directory
@@ -112,14 +106,14 @@ pub async fn create_directory(session_id: String, path: String) -> Result<(), Sf
 
     tracing::info!("Creating directory {} for session {}", path, session_id);
 
-    let sftp_mgr = manager().read();
-    let client = sftp_mgr
-        .get_client(&session_uuid)
-        .ok_or_else(|| SftpError::NotConnected)?;
+    let client = {
+        let sftp_mgr = manager().read();
+        sftp_mgr
+            .get_client(&session_uuid)
+            .ok_or_else(|| SftpError::NotConnected)?
+    };
 
-    let result = client.mkdir(&path).await;
-    drop(sftp_mgr);
-    result
+    client.mkdir(&path).await
 }
 
 /// List local directory contents

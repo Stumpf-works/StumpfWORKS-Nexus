@@ -5,6 +5,7 @@ use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use russh_sftp::client::SftpSession;
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// Global SFTP manager
@@ -18,7 +19,7 @@ pub fn manager() -> &'static RwLock<SftpManager> {
 
 /// SFTP Session Manager
 pub struct SftpManager {
-    sessions: HashMap<Uuid, SftpClient>,
+    sessions: HashMap<Uuid, Arc<SftpClient>>,
 }
 
 impl SftpManager {
@@ -31,13 +32,13 @@ impl SftpManager {
     /// Create SFTP session from an existing SFTP session
     pub fn add_session(&mut self, session_id: Uuid, sftp_session: SftpSession) {
         tracing::info!("Adding SFTP session for terminal {}", session_id);
-        let client = SftpClient::new(sftp_session);
+        let client = Arc::new(SftpClient::new(sftp_session));
         self.sessions.insert(session_id, client);
     }
 
     /// Get SFTP client for a session
-    pub fn get_client(&self, session_id: &Uuid) -> Option<&SftpClient> {
-        self.sessions.get(session_id)
+    pub fn get_client(&self, session_id: &Uuid) -> Option<Arc<SftpClient>> {
+        self.sessions.get(session_id).cloned()
     }
 
     /// Remove SFTP session
