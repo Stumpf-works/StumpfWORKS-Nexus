@@ -57,34 +57,52 @@ pub async fn connect_terminal(
         timeout_seconds: 30,
     };
 
-    let mut mgr = manager().write();
-    let session = mgr
-        .get_session_mut(session_id)
+    // Take session out to avoid holding lock across await
+    let mut session = manager()
+        .write()
+        .close_session(session_id)
         .ok_or_else(|| TerminalError::SessionNotFound(session_id.to_string()))?;
 
-    session.connect(config, app).await
+    let result = session.connect(config, app).await;
+
+    // Put session back
+    manager().write().insert_session(session_id, session);
+
+    result
 }
 
 /// Write data to terminal
 #[tauri::command]
 pub async fn write_terminal(session_id: Uuid, data: String) -> Result<(), TerminalError> {
-    let mut mgr = manager().write();
-    let session = mgr
-        .get_session_mut(session_id)
+    // Take session out to avoid holding lock across await
+    let mut session = manager()
+        .write()
+        .close_session(session_id)
         .ok_or_else(|| TerminalError::SessionNotFound(session_id.to_string()))?;
 
-    session.write(data.as_bytes()).await
+    let result = session.write(data.as_bytes()).await;
+
+    // Put session back
+    manager().write().insert_session(session_id, session);
+
+    result
 }
 
 /// Resize terminal
 #[tauri::command]
 pub async fn resize_terminal(session_id: Uuid, cols: u32, rows: u32) -> Result<(), TerminalError> {
-    let mut mgr = manager().write();
-    let session = mgr
-        .get_session_mut(session_id)
+    // Take session out to avoid holding lock across await
+    let mut session = manager()
+        .write()
+        .close_session(session_id)
         .ok_or_else(|| TerminalError::SessionNotFound(session_id.to_string()))?;
 
-    session.resize(cols, rows).await
+    let result = session.resize(cols, rows).await;
+
+    // Put session back
+    manager().write().insert_session(session_id, session);
+
+    result
 }
 
 /// Close terminal session

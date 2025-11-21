@@ -181,6 +181,11 @@ impl TerminalManager {
     pub fn close_session(&mut self, id: Uuid) -> Option<TerminalSession> {
         self.sessions.remove(&id)
     }
+
+    /// Insert a session back (used after async operations)
+    pub fn insert_session(&mut self, id: Uuid, session: TerminalSession) {
+        self.sessions.insert(id, session);
+    }
 }
 
 impl Default for TerminalManager {
