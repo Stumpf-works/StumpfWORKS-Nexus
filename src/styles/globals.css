@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  * {
+    @apply border-border dark:border-border-dark;
+  }
+
+  body {
+    @apply bg-surface text-text-primary dark:bg-surface-dark dark:text-text-primary-dark;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-600;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-accent/30 text-text-primary dark:text-text-primary-dark;
+  }
+}
+
+/* Component styles */
+@layer components {
+  /* macOS-style glass effect */
+  .glass {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-macos;
+  }
+
+  .glass-light {
+    @apply bg-white/60 dark:bg-gray-800/60 backdrop-blur-md;
+  }
+
+  /* macOS-style buttons */
+  .btn-primary {
+    @apply px-4 py-2 bg-accent text-white rounded-macos font-medium
+           hover:bg-accent-hover active:scale-[0.98] transition-all
+           focus:outline-none focus:ring-2 focus:ring-accent/50;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-200 dark:bg-gray-700 text-text-primary dark:text-text-primary-dark
+           rounded-macos font-medium hover:bg-gray-300 dark:hover:bg-gray-600
+           active:scale-[0.98] transition-all
+           focus:outline-none focus:ring-2 focus:ring-gray-400/50;
+  }
+
+  .btn-ghost {
+    @apply px-3 py-1.5 text-text-secondary dark:text-text-secondary-dark
+           rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700
+           active:scale-[0.98] transition-all;
+  }
+
+  /* Input fields */
+  .input {
+    @apply w-full px-3 py-2 bg-white dark:bg-gray-800
+           border border-gray-300 dark:border-gray-600
+           rounded-macos text-text-primary dark:text-text-primary-dark
+           placeholder:text-text-secondary dark:placeholder:text-text-secondary-dark
+           focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+           transition-all;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-macos-lg shadow-macos-sm
+           border border-gray-200 dark:border-gray-700;
+  }
+
+  /* Status indicators */
+  .status-connected {
+    @apply w-2 h-2 rounded-full bg-success;
+  }
+
+  .status-disconnected {
+    @apply w-2 h-2 rounded-full bg-gray-400;
+  }
+
+  .status-error {
+    @apply w-2 h-2 rounded-full bg-error;
+  }
+
+  .status-connecting {
+    @apply w-2 h-2 rounded-full bg-warning animate-pulse;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  .drag {
+    -webkit-app-region: drag;
+  }
+
+  /* Text ellipsis */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Animation utilities */
+  .animate-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+}
+
+/* Terminal styles */
+.xterm {
+  @apply h-full;
+}
+
+.xterm-viewport {
+  @apply !overflow-y-auto;
+}
+
+/* Radix UI overrides */
+[data-radix-popper-content-wrapper] {
+  @apply z-50;
+}
