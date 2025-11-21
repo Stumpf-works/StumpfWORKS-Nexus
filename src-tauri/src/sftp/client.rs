@@ -1,99 +1,123 @@
 //! SFTP Client Implementation
 
 use super::{FileEntry, SftpError, TransferProgress};
-use chrono::{TimeZone, Utc};
+use chrono::Utc;
+use russh::Channel;
+use russh_sftp::client::SftpSession;
 use std::path::Path;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
 /// SFTP Client for file operations
 pub struct SftpClient {
-    // russh-sftp session will be stored here
-    // For now, we implement the interface
-    connected: bool,
-    current_path: String,
+    sftp: SftpSession,
 }
 
 impl SftpClient {
-    pub fn new() -> Self {
-        Self {
-            connected: false,
-            current_path: "/".to_string(),
-        }
-    }
+    /// Create SFTP client from existing SSH channel
+    pub async fn from_channel(channel: Channel<russh::client::Msg>) -> Result<Self, SftpError> {
+        tracing::info!("Initializing SFTP session");
+        let sftp = SftpSession::new(channel)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to create SFTP session: {}", e)))?;
 
-    /// Connect SFTP subsystem over existing SSH channel
-    pub async fn connect(&mut self) -> Result<(), SftpError> {
-        // TODO: Initialize russh-sftp over SSH channel
-        self.connected = true;
-        Ok(())
-    }
-
-    /// Check if connected
-    pub fn is_connected(&self) -> bool {
-        self.connected
+        Ok(Self { sftp })
     }
 
     /// List directory contents
     pub async fn list_dir(&self, path: &str) -> Result<Vec<FileEntry>, SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
-
         tracing::debug!("Listing directory: {}", path);
 
-        // TODO: Implement actual SFTP readdir
-        // For now, return mock data for testing
-        Ok(vec![
-            FileEntry {
-                name: "..".to_string(),
-                path: get_parent_path(path),
-                is_dir: true,
-                size: 0,
-                modified: None,
-                permissions: Some("drwxr-xr-x".to_string()),
-                owner: Some("root".to_string()),
-                group: Some("root".to_string()),
-            },
-            FileEntry {
-                name: "home".to_string(),
-                path: format!("{}/home", path.trim_end_matches('/')),
-                is_dir: true,
-                size: 4096,
-                modified: Some(Utc::now()),
-                permissions: Some("drwxr-xr-x".to_string()),
-                owner: Some("root".to_string()),
-                group: Some("root".to_string()),
-            },
-            FileEntry {
-                name: "etc".to_string(),
-                path: format!("{}/etc", path.trim_end_matches('/')),
-                is_dir: true,
-                size: 4096,
-                modified: Some(Utc::now()),
-                permissions: Some("drwxr-xr-x".to_string()),
-                owner: Some("root".to_string()),
-                group: Some("root".to_string()),
-            },
-            FileEntry {
-                name: "var".to_string(),
-                path: format!("{}/var", path.trim_end_matches('/')),
-                is_dir: true,
-                size: 4096,
-                modified: Some(Utc::now()),
-                permissions: Some("drwxr-xr-x".to_string()),
-                owner: Some("root".to_string()),
-                group: Some("root".to_string()),
-            },
-        ])
+        let mut entries = Vec::new();
+
+        // Read directory
+        let dir_handle = self
+            .sftp
+            .open_dir(path)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to open directory: {}", e)))?;
+
+        let files = self
+            .sftp
+            .read_dir(dir_handle)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to read directory: {}", e)))?;
+
+        for file in files {
+            let attrs = file.attrs();
+            let is_dir = attrs.is_dir();
+            let size = attrs.size.unwrap_or(0);
+            let modified = attrs.mtime.map(|t| {
+                chrono::DateTime::from_timestamp(t as i64, 0)
+                    .unwrap_or_else(|| Utc::now())
+            });
+
+            let permissions = if let Some(perms) = attrs.permissions {
+                Some(format_permissions(perms, is_dir))
+            } else {
+                None
+            };
+
+            entries.push(FileEntry {
+                name: file.file_name().to_string(),
+                path: format!("{}/{}", path.trim_end_matches('/'), file.file_name()),
+                is_dir,
+                size,
+                modified,
+                permissions,
+                owner: None, // russh-sftp doesn't provide owner/group easily
+                group: None,
+            });
+        }
+
+        self.sftp
+            .close(dir_handle)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to close directory: {}", e)))?;
+
+        // Add parent directory entry if not root
+        if path != "/" {
+            entries.insert(
+                0,
+                FileEntry {
+                    name: "..".to_string(),
+                    path: get_parent_path(path),
+                    is_dir: true,
+                    size: 0,
+                    modified: None,
+                    permissions: Some("drwxr-xr-x".to_string()),
+                    owner: None,
+                    group: None,
+                },
+            );
+        }
+
+        Ok(entries)
     }
 
     /// Get file/directory info
     pub async fn stat(&self, path: &str) -> Result<FileEntry, SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
+        tracing::debug!("Getting stats for: {}", path);
 
-        // TODO: Implement actual SFTP stat
+        let attrs = self
+            .sftp
+            .metadata(path)
+            .await
+            .map_err(|e| SftpError::PathNotFound(format!("{}: {}", path, e)))?;
+
+        let is_dir = attrs.is_dir();
+        let size = attrs.size.unwrap_or(0);
+        let modified = attrs.mtime.map(|t| {
+            chrono::DateTime::from_timestamp(t as i64, 0)
+                .unwrap_or_else(|| Utc::now())
+        });
+
+        let permissions = if let Some(perms) = attrs.permissions {
+            Some(format_permissions(perms, is_dir))
+        } else {
+            None
+        };
+
         let name = Path::new(path)
             .file_name()
             .map(|s| s.to_string_lossy().to_string())
@@ -102,56 +126,60 @@ impl SftpClient {
         Ok(FileEntry {
             name,
             path: path.to_string(),
-            is_dir: true,
-            size: 4096,
-            modified: Some(Utc::now()),
-            permissions: Some("drwxr-xr-x".to_string()),
-            owner: Some("root".to_string()),
-            group: Some("root".to_string()),
+            is_dir,
+            size,
+            modified,
+            permissions,
+            owner: None,
+            group: None,
         })
     }
 
     /// Create directory
     pub async fn mkdir(&self, path: &str) -> Result<(), SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
-
         tracing::info!("Creating directory: {}", path);
-        // TODO: Implement actual SFTP mkdir
+
+        self.sftp
+            .create_dir(path)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to create directory: {}", e)))?;
+
         Ok(())
     }
 
     /// Remove directory
     pub async fn rmdir(&self, path: &str) -> Result<(), SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
-
         tracing::info!("Removing directory: {}", path);
-        // TODO: Implement actual SFTP rmdir
+
+        self.sftp
+            .remove_dir(path)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to remove directory: {}", e)))?;
+
         Ok(())
     }
 
     /// Remove file
     pub async fn remove(&self, path: &str) -> Result<(), SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
-
         tracing::info!("Removing file: {}", path);
-        // TODO: Implement actual SFTP remove
+
+        self.sftp
+            .remove_file(path)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to remove file: {}", e)))?;
+
         Ok(())
     }
 
     /// Rename/move file or directory
     pub async fn rename(&self, from: &str, to: &str) -> Result<(), SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
-
         tracing::info!("Renaming {} to {}", from, to);
-        // TODO: Implement actual SFTP rename
+
+        self.sftp
+            .rename(from, to)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to rename: {}", e)))?;
+
         Ok(())
     }
 
@@ -162,31 +190,55 @@ impl SftpClient {
         remote_path: &str,
         progress_tx: Option<mpsc::Sender<TransferProgress>>,
     ) -> Result<(), SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
-
         tracing::info!("Uploading {} to {}", local_path, remote_path);
 
-        // Get file size
-        let metadata = tokio::fs::metadata(local_path).await?;
+        // Read local file
+        let mut local_file = tokio::fs::File::open(local_path).await?;
+        let metadata = local_file.metadata().await?;
         let total_bytes = metadata.len();
 
-        // TODO: Implement actual SFTP upload
-        // Simulate progress for now
-        if let Some(tx) = progress_tx {
-            for i in 0..=10 {
+        // Create remote file
+        let mut remote_file = self
+            .sftp
+            .create(remote_path)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to create remote file: {}", e)))?;
+
+        // Upload in chunks
+        let mut buffer = vec![0u8; 32768]; // 32KB chunks
+        let mut bytes_transferred = 0u64;
+
+        loop {
+            let n = local_file.read(&mut buffer).await?;
+            if n == 0 {
+                break;
+            }
+
+            self.sftp
+                .write(&mut remote_file, &buffer[..n])
+                .await
+                .map_err(|e| SftpError::TransferFailed(format!("Write failed: {}", e)))?;
+
+            bytes_transferred += n as u64;
+
+            // Send progress update
+            if let Some(ref tx) = progress_tx {
                 let progress = TransferProgress {
                     path: remote_path.to_string(),
-                    bytes_transferred: (total_bytes * i) / 10,
+                    bytes_transferred,
                     total_bytes,
-                    percent: (i as f32) * 10.0,
+                    percent: (bytes_transferred as f32 / total_bytes as f32) * 100.0,
                 };
                 let _ = tx.send(progress).await;
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             }
         }
 
+        self.sftp
+            .close(remote_file)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to close remote file: {}", e)))?;
+
+        tracing::info!("Upload complete: {} bytes", bytes_transferred);
         Ok(())
     }
 
@@ -197,70 +249,159 @@ impl SftpClient {
         local_path: &str,
         progress_tx: Option<mpsc::Sender<TransferProgress>>,
     ) -> Result<(), SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
-
         tracing::info!("Downloading {} to {}", remote_path, local_path);
 
-        // TODO: Implement actual SFTP download
-        // Simulate progress for now
-        let total_bytes = 1024 * 1024; // 1MB mock
+        // Get remote file size
+        let attrs = self.sftp.metadata(remote_path).await
+            .map_err(|e| SftpError::PathNotFound(format!("{}: {}", remote_path, e)))?;
+        let total_bytes = attrs.size.unwrap_or(0);
 
-        if let Some(tx) = progress_tx {
-            for i in 0..=10 {
+        // Open remote file
+        let mut remote_file = self
+            .sftp
+            .open(remote_path)
+            .await
+            .map_err(|e| SftpError::PathNotFound(format!("{}: {}", remote_path, e)))?;
+
+        // Create local file
+        let mut local_file = tokio::fs::File::create(local_path).await?;
+
+        // Download in chunks
+        let mut buffer = vec![0u8; 32768]; // 32KB chunks
+        let mut bytes_transferred = 0u64;
+
+        loop {
+            let n = match self.sftp.read(&mut remote_file, &mut buffer).await {
+                Ok(n) if n == 0 => break,
+                Ok(n) => n,
+                Err(e) => return Err(SftpError::TransferFailed(format!("Read failed: {}", e))),
+            };
+
+            local_file.write_all(&buffer[..n]).await?;
+            bytes_transferred += n as u64;
+
+            // Send progress update
+            if let Some(ref tx) = progress_tx {
                 let progress = TransferProgress {
                     path: remote_path.to_string(),
-                    bytes_transferred: (total_bytes * i) / 10,
+                    bytes_transferred,
                     total_bytes,
-                    percent: (i as f32) * 10.0,
+                    percent: if total_bytes > 0 {
+                        (bytes_transferred as f32 / total_bytes as f32) * 100.0
+                    } else {
+                        0.0
+                    },
                 };
                 let _ = tx.send(progress).await;
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             }
         }
 
+        self.sftp
+            .close(remote_file)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to close remote file: {}", e)))?;
+
+        local_file.flush().await?;
+
+        tracing::info!("Download complete: {} bytes", bytes_transferred);
         Ok(())
     }
 
     /// Read file contents
     pub async fn read_file(&self, path: &str) -> Result<Vec<u8>, SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
+        tracing::debug!("Reading file: {}", path);
+
+        let mut file = self
+            .sftp
+            .open(path)
+            .await
+            .map_err(|e| SftpError::PathNotFound(format!("{}: {}", path, e)))?;
+
+        let mut contents = Vec::new();
+        let mut buffer = vec![0u8; 32768];
+
+        loop {
+            let n = match self.sftp.read(&mut file, &mut buffer).await {
+                Ok(n) if n == 0 => break,
+                Ok(n) => n,
+                Err(e) => return Err(SftpError::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Read failed: {}", e),
+                ))),
+            };
+
+            contents.extend_from_slice(&buffer[..n]);
         }
 
-        tracing::debug!("Reading file: {}", path);
-        // TODO: Implement actual SFTP read
-        Ok(Vec::new())
+        self.sftp
+            .close(file)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to close file: {}", e)))?;
+
+        Ok(contents)
     }
 
     /// Write file contents
     pub async fn write_file(&self, path: &str, data: &[u8]) -> Result<(), SftpError> {
-        if !self.connected {
-            return Err(SftpError::NotConnected);
-        }
-
         tracing::debug!("Writing {} bytes to {}", data.len(), path);
-        // TODO: Implement actual SFTP write
-        Ok(())
-    }
 
-    /// Disconnect
-    pub async fn disconnect(&mut self) {
-        self.connected = false;
-        tracing::info!("SFTP disconnected");
+        let mut file = self
+            .sftp
+            .create(path)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to create file: {}", e)))?;
+
+        self.sftp
+            .write(&mut file, data)
+            .await
+            .map_err(|e| SftpError::TransferFailed(format!("Write failed: {}", e)))?;
+
+        self.sftp
+            .close(file)
+            .await
+            .map_err(|e| SftpError::Ssh(format!("Failed to close file: {}", e)))?;
+
+        Ok(())
     }
 }
 
 fn get_parent_path(path: &str) -> String {
     Path::new(path)
         .parent()
-        .map(|p| p.to_string_lossy().to_string())
+        .map(|p| {
+            let parent_str = p.to_string_lossy().to_string();
+            if parent_str.is_empty() {
+                "/".to_string()
+            } else {
+                parent_str
+            }
+        })
         .unwrap_or_else(|| "/".to_string())
 }
 
-impl Default for SftpClient {
-    fn default() -> Self {
-        Self::new()
-    }
+fn format_permissions(mode: u32, is_dir: bool) -> String {
+    let file_type = if is_dir { 'd' } else { '-' };
+
+    let user = format!(
+        "{}{}{}",
+        if mode & 0o400 != 0 { 'r' } else { '-' },
+        if mode & 0o200 != 0 { 'w' } else { '-' },
+        if mode & 0o100 != 0 { 'x' } else { '-' }
+    );
+
+    let group = format!(
+        "{}{}{}",
+        if mode & 0o040 != 0 { 'r' } else { '-' },
+        if mode & 0o020 != 0 { 'w' } else { '-' },
+        if mode & 0o010 != 0 { 'x' } else { '-' }
+    );
+
+    let other = format!(
+        "{}{}{}",
+        if mode & 0o004 != 0 { 'r' } else { '-' },
+        if mode & 0o002 != 0 { 'w' } else { '-' },
+        if mode & 0o001 != 0 { 'x' } else { '-' }
+    );
+
+    format!("{}{}{}{}", file_type, user, group, other)
 }

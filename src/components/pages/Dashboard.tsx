@@ -7,11 +7,12 @@ import { useSessionStore } from "../../store/sessionStore";
 export default function Dashboard() {
   const navigate = useNavigate();
   const { hosts, fetchHosts } = useHostStore();
-  const { sessions, createSession, closeSession } = useSessionStore();
+  const { sessions, createSession, closeSession, fetchSessions } = useSessionStore();
 
   useEffect(() => {
     fetchHosts();
-  }, [fetchHosts]);
+    fetchSessions();
+  }, [fetchHosts, fetchSessions]);
 
   const recentHosts = [...hosts]
     .sort((a, b) => {

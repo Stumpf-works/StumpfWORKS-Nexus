@@ -325,6 +325,19 @@ impl SshClient {
         Ok(channel)
     }
 
+    /// Open an SFTP channel
+    pub async fn open_sftp_channel(&mut self) -> Result<russh::Channel<client::Msg>, SshError> {
+        let session = self.session.as_mut().ok_or(SshError::NotConnected)?;
+
+        let channel = session.channel_open_session().await?;
+
+        // Request SFTP subsystem
+        channel.request_subsystem(true, "sftp").await?;
+
+        tracing::info!("SFTP channel opened for {}", self.config.host);
+        Ok(channel)
+    }
+
     /// Disconnect from the SSH server
     pub async fn disconnect(&mut self) -> Result<(), SshError> {
         if let Some(session) = self.session.take() {

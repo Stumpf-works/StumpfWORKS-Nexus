@@ -177,6 +177,11 @@ impl TerminalSession {
         Ok(())
     }
 
+    /// Get mutable SSH client
+    pub fn get_ssh_client_mut(&mut self) -> Option<&mut SshClient> {
+        self.ssh_client.as_mut()
+    }
+
     /// Disconnect
     pub async fn disconnect(&mut self) -> Result<(), TerminalError> {
         // Drop the channels to signal the task to stop
