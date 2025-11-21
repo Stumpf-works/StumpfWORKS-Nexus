@@ -8,6 +8,9 @@ export interface Host {
   port: number;
   username: string;
   auth_type: "password" | "private_key" | "agent";
+  password: string | null;
+  private_key: string | null;
+  passphrase: string | null;
   group_id: string | null;
   tags: string[];
   icon: string | null;
