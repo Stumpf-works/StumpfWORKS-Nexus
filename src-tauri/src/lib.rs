@@ -14,6 +14,7 @@ pub mod plugins;
 pub mod session;
 pub mod sftp;
 pub mod ssh;
+pub mod terminal;
 pub mod utils;
 
 use tauri::Manager;
@@ -74,6 +75,14 @@ pub fn run() {
             session::commands::get_sessions,
             session::commands::create_session,
             session::commands::close_session,
+            // Terminal commands
+            terminal::commands::create_terminal,
+            terminal::commands::get_terminal,
+            terminal::commands::get_terminals,
+            terminal::commands::connect_terminal,
+            terminal::commands::write_terminal,
+            terminal::commands::resize_terminal,
+            terminal::commands::close_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
