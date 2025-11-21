@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schemas.tauri.app/capabilities/schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for StumpfWORKS Nexus",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:default",
+    "fs:default",
+    "fs:allow-read",
+    "fs:allow-write",
+    "fs:allow-app-read",
+    "fs:allow-app-write",
+    "shell:default",
+    "shell:allow-execute",
+    "shell:allow-spawn"
+  ]
+}

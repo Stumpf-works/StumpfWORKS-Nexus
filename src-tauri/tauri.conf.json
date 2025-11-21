@@ -52,13 +52,7 @@
     }
   },
   "plugins": {
-    "fs": {
-      "all": true,
-      "scope": ["$APPDATA/**", "$HOME/**"]
-    },
-    "shell": {
-      "all": true,
-      "scope": []
-    }
+    "fs": {},
+    "shell": {}
   }
 }
