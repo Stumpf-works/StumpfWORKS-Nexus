@@ -27,6 +27,8 @@ export default function TerminalView() {
 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [pendingConnection, setPendingConnection] = useState<any>(null);
+  const hasConnectedRef = useRef<string | null>(null);
+  const connectHostRef = useRef<(() => Promise<void>) | null>(null);
 
   const currentSessionId = sessionId || activeSessionId;
   const session = sessions.find((s) => s.id === currentSessionId);
@@ -54,54 +56,59 @@ export default function TerminalView() {
 
   // Actually connect with credentials
   const doConnect = useCallback(async (password?: string, keyPath?: string, passphrase?: string) => {
-    if (!currentSessionId || !host) return;
+    const currentHost = host;
+    if (!currentSessionId || !currentHost) return;
 
     const terminal = terminalInstance.current;
     if (!terminal) return;
 
-    terminal.writeln(`\x1b[33mConnecting to ${host.name}...\x1b[0m`);
+    terminal.writeln(`\x1b[33mConnecting to ${currentHost.name}...\x1b[0m`);
 
     try {
       await invoke("connect_terminal", {
         sessionId: currentSessionId,
-        host: host.hostname,
-        port: host.port,
-        username: host.username,
-        authType: host.auth_type,
+        host: currentHost.hostname,
+        port: currentHost.port,
+        username: currentHost.username,
+        authType: currentHost.auth_type,
         password: password || null,
         keyPath: keyPath || null,
         passphrase: passphrase || null,
       });
 
       updateSessionStatus(currentSessionId, "connected");
-      terminal.writeln(`\x1b[32mConnected to ${host.name}\x1b[0m`);
+      terminal.writeln(`\x1b[32mConnected to ${currentHost.name}\x1b[0m`);
       terminal.writeln("");
     } catch (error) {
       updateSessionStatus(currentSessionId, "error");
       terminal.writeln(`\x1b[31mConnection failed: ${error}\x1b[0m`);
     }
-  }, [currentSessionId, host, updateSessionStatus]);
+  }, [currentSessionId, host?.id, updateSessionStatus]);
 
   // Connect to SSH
   const connectToHost = useCallback(async () => {
-    if (!currentSessionId || !host) return;
+    const currentHost = host;
+    if (!currentSessionId || !currentHost) return;
 
     // Check if we have stored credentials
-    if (host.auth_type === "password" && host.password) {
+    if (currentHost.auth_type === "password" && currentHost.password) {
       // Use stored password
-      await doConnect(host.password);
-    } else if (host.auth_type === "private_key" && host.private_key) {
+      await doConnect(currentHost.password);
+    } else if (currentHost.auth_type === "private_key" && currentHost.private_key) {
       // Use stored private key
-      await doConnect(undefined, host.private_key, host.passphrase || undefined);
-    } else if (host.auth_type === "agent") {
+      await doConnect(undefined, currentHost.private_key, currentHost.passphrase || undefined);
+    } else if (currentHost.auth_type === "agent") {
       // SSH agent doesn't need credentials
       await doConnect();
     } else {
       // No stored credentials, show password dialog
-      setPendingConnection({ host, sessionId: currentSessionId });
+      setPendingConnection({ host: currentHost, sessionId: currentSessionId });
       setShowPasswordDialog(true);
     }
-  }, [currentSessionId, host, doConnect]);
+  }, [currentSessionId, host?.id, host?.auth_type, host?.password, host?.private_key, host?.passphrase, doConnect]);
+
+  // Store connect function in ref
+  connectHostRef.current = connectToHost;
 
   // Handle password dialog submit
   const handlePasswordSubmit = useCallback(async (password: string, remember: boolean) => {
@@ -242,12 +249,19 @@ export default function TerminalView() {
     };
   }, [currentSessionId, updateSessionStatus]);
 
-  // Auto-connect when session and host are available
+  // Auto-connect when session and host are available (only once)
   useEffect(() => {
-    if (session && host && session.status === "disconnected") {
-      connectToHost();
+    if (!session || !host) {
+      return;
     }
-  }, [session, host, connectToHost]);
+
+    // Only connect once per unique session
+    const sessionKey = `${session.id}-${host.id}`;
+    if (session.status === "disconnected" && hasConnectedRef.current !== sessionKey) {
+      hasConnectedRef.current = sessionKey;
+      connectHostRef.current?.();
+    }
+  }, [session?.id, host?.id, session?.status]);
 
   // Update theme
   useEffect(() => {
