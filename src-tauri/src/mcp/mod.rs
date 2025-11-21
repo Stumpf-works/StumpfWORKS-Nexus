@@ -14,9 +14,12 @@
 //! - nexus.logs.stream
 //! - nexus.ai.invoke
 
-pub mod server;
-pub mod permissions;
 pub mod handlers;
+pub mod http;
+pub mod permissions;
+pub mod server;
+
+pub use http::McpHttpServer;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

@@ -8,6 +8,7 @@ import SftpExplorer from "./components/sftp/SftpExplorer";
 import SnippetManager from "./components/snippets/SnippetManager";
 import Settings from "./components/settings/Settings";
 import CommandPalette from "./components/command-palette/CommandPalette";
+import { ToastContainer } from "./components/ui/Toast";
 
 function App() {
   const { theme, initTheme } = useThemeStore();
@@ -40,6 +41,7 @@ function App() {
           </Routes>
         </MainLayout>
         <CommandPalette />
+        <ToastContainer />
       </div>
     </BrowserRouter>
   );
