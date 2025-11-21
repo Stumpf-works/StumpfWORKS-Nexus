@@ -43,6 +43,41 @@ impl Host {
             last_connected: None,
         }
     }
+
+    pub fn from_new(new: NewHost) -> Self {
+        let now = Utc::now();
+        Self {
+            id: Uuid::new_v4(),
+            name: new.name,
+            hostname: new.hostname,
+            port: new.port,
+            username: new.username,
+            auth_type: new.auth_type,
+            group_id: new.group_id,
+            tags: new.tags,
+            icon: new.icon,
+            color: new.color,
+            notes: new.notes,
+            created_at: now,
+            updated_at: now,
+            last_connected: None,
+        }
+    }
+}
+
+/// New host data (for creating hosts without id/timestamps)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewHost {
+    pub name: String,
+    pub hostname: String,
+    pub port: u16,
+    pub username: String,
+    pub auth_type: AuthType,
+    pub group_id: Option<Uuid>,
+    pub tags: Vec<String>,
+    pub icon: Option<String>,
+    pub color: Option<String>,
+    pub notes: Option<String>,
 }
 
 /// Authentication type for hosts
