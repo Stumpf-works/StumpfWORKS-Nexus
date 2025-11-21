@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Server, Plus, Clock, Activity } from "lucide-react";
+import { Server, Plus, Clock, Activity, Terminal, FolderOpen, X, BarChart3 } from "lucide-react";
 import { useHostStore } from "../../store/hostStore";
 import { useSessionStore } from "../../store/sessionStore";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { hosts, fetchHosts } = useHostStore();
-  const { sessions, createSession } = useSessionStore();
+  const { sessions, createSession, closeSession } = useSessionStore();
 
   useEffect(() => {
     fetchHosts();
@@ -21,6 +21,9 @@ export default function Dashboard() {
     })
     .slice(0, 5);
 
+  const connectedSessions = sessions.filter((s) => s.status === "connected");
+  const connectingSessions = sessions.filter((s) => s.status === "connecting" || s.status === "reconnecting");
+
   const handleQuickConnect = async (host: typeof hosts[0]) => {
     try {
       const session = await createSession(host.id, host.name);
@@ -30,16 +33,84 @@ export default function Dashboard() {
     }
   };
 
+  const handleCloseSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await closeSession(sessionId);
+    } catch (error) {
+      console.error("Failed to close session:", error);
+    }
+  };
+
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
           Welcome to Nexus
         </h1>
         <p className="text-text-secondary mt-1">
           Connect to your servers and manage your infrastructure
         </p>
+      </div>
+
+      {/* Statistics Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+              <Server className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
+                {hosts.length}
+              </p>
+              <p className="text-xs text-text-secondary">Total Servers</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+              <Activity className="w-5 h-5 text-success" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
+                {connectedSessions.length}
+              </p>
+              <p className="text-xs text-text-secondary">Active Sessions</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-warning" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
+                {connectingSessions.length}
+              </p>
+              <p className="text-xs text-text-secondary">Connecting</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-purple-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
+                {connectedSessions.reduce((sum, s) => sum + (s.latency_ms || 0), 0) / (connectedSessions.length || 1)}ms
+              </p>
+              <p className="text-xs text-text-secondary">Avg Latency</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -106,44 +177,81 @@ export default function Dashboard() {
               Active Sessions
             </h2>
             <span className="text-xs px-2 py-1 bg-success/10 text-success rounded-full">
-              {sessions.filter((s) => s.status === "connected").length} connected
+              {connectedSessions.length} connected
             </span>
           </div>
 
           {sessions.length > 0 ? (
             <div className="space-y-2">
-              {sessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => navigate(`/terminal/${session.id}`)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
-                >
+              {sessions.map((session) => {
+                const host = hosts.find((h) => h.id === session.host_id);
+                return (
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      session.status === "connected"
-                        ? "bg-success"
-                        : session.status === "connecting"
-                          ? "bg-warning animate-pulse"
-                          : "bg-gray-400"
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-text-primary dark:text-text-primary-dark truncate">
-                      {session.name}
+                    key={session.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        session.status === "connected"
+                          ? "bg-success"
+                          : session.status === "connecting" || session.status === "reconnecting"
+                            ? "bg-warning animate-pulse"
+                            : "bg-error"
+                      }`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-text-primary dark:text-text-primary-dark truncate">
+                        {session.name}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-text-secondary">
+                        <span className="capitalize">{session.status}</span>
+                        {session.latency_ms && (
+                          <>
+                            <span>•</span>
+                            <span>{Math.round(session.latency_ms)}ms</span>
+                          </>
+                        )}
+                        {host && (
+                          <>
+                            <span>•</span>
+                            <span className="truncate">{host.hostname}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-text-secondary">
-                      {session.status}
-                      {session.latency_ms && ` - ${session.latency_ms}ms`}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => navigate(`/terminal/${session.id}`)}
+                        className="p-1.5 hover:bg-accent hover:text-white rounded transition-colors"
+                        title="Open Terminal"
+                      >
+                        <Terminal className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => navigate(`/sftp/${session.id}`)}
+                        className="p-1.5 hover:bg-accent hover:text-white rounded transition-colors"
+                        title="Open SFTP"
+                      >
+                        <FolderOpen className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleCloseSession(session.id, e)}
+                        className="p-1.5 hover:bg-error hover:text-white rounded transition-colors"
+                        title="Close Session"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8 text-text-secondary">
-              <p>No active sessions</p>
+              <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No active sessions</p>
               <p className="text-xs mt-1">
-                Double-click a server in the sidebar to connect
+                Click a server below or in the sidebar to connect
               </p>
             </div>
           )}
