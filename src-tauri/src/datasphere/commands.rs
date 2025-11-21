@@ -1,6 +1,6 @@
 //! DataSphere Tauri Commands
 
-use super::{storage, DataSphereError, Host, HostGroup, Settings, Snippet};
+use super::{storage, DataSphereError, Host, HostGroup, NewHost, Settings, Snippet};
 use uuid::Uuid;
 
 /// Get all hosts
@@ -13,9 +13,10 @@ pub fn get_hosts() -> Result<Vec<Host>, DataSphereError> {
 
 /// Add a new host
 #[tauri::command]
-pub fn add_host(host: Host) -> Result<Host, DataSphereError> {
+pub fn add_host(host: NewHost) -> Result<Host, DataSphereError> {
     let mut storage = storage().write();
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
+    let host = Host::from_new(host);
     storage.add_host(host)
 }
 
