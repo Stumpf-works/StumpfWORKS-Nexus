@@ -50,12 +50,20 @@ pub async fn connect_terminal(
     };
 
     let config = SshConfig {
-        host,
+        host: host.clone(),
         port,
         username,
         auth_method,
         timeout_seconds: 30,
     };
+
+    // Check if terminal session exists, create if not
+    let session_exists = manager().read().get_session(session_id).is_some();
+    if !session_exists {
+        // Create a new terminal session with the same ID
+        let mut mgr = manager().write();
+        mgr.create_session_with_id(session_id, session_id, host);
+    }
 
     // Take session out to avoid holding lock across await
     let mut session = manager()

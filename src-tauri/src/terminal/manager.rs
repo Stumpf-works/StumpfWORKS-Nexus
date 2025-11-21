@@ -42,6 +42,18 @@ impl TerminalSession {
         }
     }
 
+    pub fn new_with_id(id: Uuid, host_id: Uuid, host_name: String) -> Self {
+        Self {
+            id,
+            host_id,
+            host_name,
+            cols: 80,
+            rows: 24,
+            ssh_client: None,
+            data_tx: None,
+        }
+    }
+
     pub fn info(&self) -> TerminalInfo {
         TerminalInfo {
             id: self.id,
@@ -157,6 +169,14 @@ impl TerminalManager {
     /// Create a new terminal session
     pub fn create_session(&mut self, host_id: Uuid, host_name: String) -> TerminalInfo {
         let session = TerminalSession::new(host_id, host_name);
+        let info = session.info();
+        self.sessions.insert(session.id, session);
+        info
+    }
+
+    /// Create a new terminal session with a specific ID
+    pub fn create_session_with_id(&mut self, id: Uuid, host_id: Uuid, host_name: String) -> TerminalInfo {
+        let session = TerminalSession::new_with_id(id, host_id, host_name);
         let info = session.info();
         self.sessions.insert(session.id, session);
         info
