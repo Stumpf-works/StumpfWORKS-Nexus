@@ -1,24 +1,82 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
 import { useSessionStore } from "../../store/sessionStore";
 import { useThemeStore } from "../../store/themeStore";
+import { useHostStore } from "../../store/hostStore";
+
+interface TerminalEvent {
+  type: "Data" | "Connected" | "Disconnected" | "Error" | "Latency";
+  data?: string | number;
+}
 
 export default function TerminalView() {
   const { sessionId } = useParams<{ sessionId?: string }>();
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstance = useRef<Terminal | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
-  const { sessions, activeSessionId } = useSessionStore();
+  const { sessions, activeSessionId, updateSessionStatus } = useSessionStore();
+  const { hosts } = useHostStore();
   const { resolvedTheme } = useThemeStore();
-  const [isReady, setIsReady] = useState(false);
 
-  const session = sessions.find(
-    (s) => s.id === (sessionId || activeSessionId)
-  );
+  const currentSessionId = sessionId || activeSessionId;
+  const session = sessions.find((s) => s.id === currentSessionId);
+  const host = session ? hosts.find((h) => h.id === session.host_id) : null;
+
+  // Write data to terminal backend
+  const writeToBackend = useCallback(async (data: string) => {
+    if (!currentSessionId) return;
+    try {
+      await invoke("write_terminal", { sessionId: currentSessionId, data });
+    } catch (error) {
+      console.error("Failed to write to terminal:", error);
+    }
+  }, [currentSessionId]);
+
+  // Resize terminal backend
+  const resizeBackend = useCallback(async (cols: number, rows: number) => {
+    if (!currentSessionId) return;
+    try {
+      await invoke("resize_terminal", { sessionId: currentSessionId, cols, rows });
+    } catch (error) {
+      console.error("Failed to resize terminal:", error);
+    }
+  }, [currentSessionId]);
+
+  // Connect to SSH
+  const connectToHost = useCallback(async () => {
+    if (!currentSessionId || !host) return;
+
+    const terminal = terminalInstance.current;
+    if (!terminal) return;
+
+    terminal.writeln(`\x1b[33mConnecting to ${host.name}...\x1b[0m`);
+
+    try {
+      await invoke("connect_terminal", {
+        sessionId: currentSessionId,
+        host: host.hostname,
+        port: host.port,
+        username: host.username,
+        authType: host.auth_type,
+        password: null, // Would come from secure storage
+        keyPath: null,
+        passphrase: null,
+      });
+
+      updateSessionStatus(currentSessionId, "connected");
+      terminal.writeln(`\x1b[32mConnected to ${host.name}\x1b[0m`);
+      terminal.writeln("");
+    } catch (error) {
+      updateSessionStatus(currentSessionId, "error");
+      terminal.writeln(`\x1b[31mConnection failed: ${error}\x1b[0m`);
+    }
+  }, [currentSessionId, host, updateSessionStatus]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -47,7 +105,6 @@ export default function TerminalView() {
     // Store references
     terminalInstance.current = terminal;
     fitAddon.current = fit;
-    setIsReady(true);
 
     // Welcome message
     terminal.writeln("\x1b[1;36m╭──────────────────────────────────────────╮\x1b[0m");
@@ -55,51 +112,86 @@ export default function TerminalView() {
     terminal.writeln("\x1b[1;36m╰──────────────────────────────────────────╯\x1b[0m");
     terminal.writeln("");
 
-    if (session) {
-      terminal.writeln(`\x1b[33mConnecting to ${session.name}...\x1b[0m`);
-    } else {
+    if (!session) {
       terminal.writeln("\x1b[90mSelect a server from the sidebar to connect.\x1b[0m");
+      terminal.writeln("");
     }
-    terminal.writeln("");
 
     // Handle resize
     const handleResize = () => {
       fit.fit();
+      const dims = fit.proposeDimensions();
+      if (dims) {
+        resizeBackend(dims.cols, dims.rows);
+      }
     };
     window.addEventListener("resize", handleResize);
 
-    // Handle input (demo echo)
-    let inputBuffer = "";
+    // Handle input - send to backend
     terminal.onData((data) => {
-      if (data === "\r") {
-        // Enter
-        terminal.writeln("");
-        if (inputBuffer.trim()) {
-          // Echo command (placeholder for actual SSH)
-          terminal.writeln(`\x1b[90m$ ${inputBuffer}\x1b[0m`);
-          terminal.writeln(`Command "${inputBuffer}" would be sent to server.`);
-        }
-        inputBuffer = "";
-        terminal.write("\x1b[32m❯\x1b[0m ");
-      } else if (data === "\x7f") {
-        // Backspace
-        if (inputBuffer.length > 0) {
-          inputBuffer = inputBuffer.slice(0, -1);
-          terminal.write("\b \b");
-        }
-      } else {
-        inputBuffer += data;
-        terminal.write(data);
-      }
+      writeToBackend(data);
     });
 
-    terminal.write("\x1b[32m❯\x1b[0m ");
+    // Initial resize
+    const dims = fit.proposeDimensions();
+    if (dims) {
+      resizeBackend(dims.cols, dims.rows);
+    }
 
     return () => {
       window.removeEventListener("resize", handleResize);
       terminal.dispose();
     };
-  }, [sessionId, activeSessionId]);
+  }, [resolvedTheme]); // Only recreate on theme change
+
+  // Listen for terminal data from backend
+  useEffect(() => {
+    if (!currentSessionId) return;
+
+    const eventName = `terminal-data-${currentSessionId}`;
+
+    const unlisten = listen<TerminalEvent>(eventName, (event) => {
+      const terminal = terminalInstance.current;
+      if (!terminal) return;
+
+      const payload = event.payload;
+
+      switch (payload.type) {
+        case "Data":
+          if (typeof payload.data === "string") {
+            terminal.write(payload.data);
+          }
+          break;
+        case "Connected":
+          updateSessionStatus(currentSessionId, "connected");
+          break;
+        case "Disconnected":
+          updateSessionStatus(currentSessionId, "disconnected");
+          terminal.writeln("\r\n\x1b[33mDisconnected from server.\x1b[0m");
+          break;
+        case "Error":
+          updateSessionStatus(currentSessionId, "error");
+          if (typeof payload.data === "string") {
+            terminal.writeln(`\r\n\x1b[31mError: ${payload.data}\x1b[0m`);
+          }
+          break;
+        case "Latency":
+          // Could update latency display
+          break;
+      }
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [currentSessionId, updateSessionStatus]);
+
+  // Auto-connect when session and host are available
+  useEffect(() => {
+    if (session && host && session.status === "disconnected") {
+      connectToHost();
+    }
+  }, [session, host, connectToHost]);
 
   // Update theme
   useEffect(() => {
