@@ -5,7 +5,7 @@
 pub mod commands;
 mod client;
 
-pub use client::SshClient;
+pub use client::{SshClient, SshConfig, SshError, AuthMethod, CommandOutput};
 
 use std::collections::HashMap;
 use parking_lot::RwLock;

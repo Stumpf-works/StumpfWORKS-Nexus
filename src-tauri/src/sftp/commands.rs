@@ -18,6 +18,8 @@ pub async fn list_directory(session_id: Uuid, path: String) -> Result<Vec<FileEn
             size: 0,
             modified: None,
             permissions: Some("drwxr-xr-x".to_string()),
+            owner: None,
+            group: None,
         },
         FileEntry {
             name: "documents".to_string(),
@@ -26,6 +28,8 @@ pub async fn list_directory(session_id: Uuid, path: String) -> Result<Vec<FileEn
             size: 4096,
             modified: Some(chrono::Utc::now()),
             permissions: Some("drwxr-xr-x".to_string()),
+            owner: Some("root".to_string()),
+            group: Some("root".to_string()),
         },
         FileEntry {
             name: "example.txt".to_string(),
@@ -34,6 +38,8 @@ pub async fn list_directory(session_id: Uuid, path: String) -> Result<Vec<FileEn
             size: 1234,
             modified: Some(chrono::Utc::now()),
             permissions: Some("-rw-r--r--".to_string()),
+            owner: Some("root".to_string()),
+            group: Some("root".to_string()),
         },
     ])
 }

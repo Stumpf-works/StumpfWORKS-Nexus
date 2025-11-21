@@ -1,12 +1,11 @@
 //! Terminal Session Manager
 
 use super::{TerminalError, TerminalEvent, TerminalInfo};
-use crate::ssh::{client::SshConfig, SshClient};
+use crate::ssh::{SshConfig, SshClient};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -73,6 +72,7 @@ impl TerminalSession {
 
         // Spawn task to read from SSH and emit to frontend
         let app_clone = app.clone();
+        let mut channel = channel;
         tokio::spawn(async move {
             loop {
                 match channel.wait().await {

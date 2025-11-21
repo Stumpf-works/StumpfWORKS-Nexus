@@ -1,6 +1,6 @@
 //! SSH Tauri Commands
 
-use super::{clients, SshClient, client::{SshConfig, SshError, CommandOutput}};
+use super::{clients, SshClient, SshConfig, SshError, CommandOutput};
 use uuid::Uuid;
 
 /// Connect to an SSH server
@@ -18,11 +18,12 @@ pub async fn connect(config: SshConfig) -> Result<Uuid, SshError> {
 /// Disconnect from an SSH server
 #[tauri::command]
 pub async fn disconnect(session_id: Uuid) -> Result<(), SshError> {
-    let mut clients = clients().write();
+    // Remove client from map first, then disconnect
+    // This avoids holding the lock across await
+    let client = clients().write().remove(&session_id);
 
-    if let Some(client) = clients.get_mut(&session_id) {
+    if let Some(mut client) = client {
         client.disconnect().await?;
-        clients.remove(&session_id);
     }
 
     Ok(())
@@ -31,11 +32,17 @@ pub async fn disconnect(session_id: Uuid) -> Result<(), SshError> {
 /// Send a command to the SSH server
 #[tauri::command]
 pub async fn send_command(session_id: Uuid, command: String) -> Result<CommandOutput, SshError> {
-    let clients = clients().read();
-
-    let client = clients
-        .get(&session_id)
+    // Take client out, execute, then put back
+    // This avoids holding lock across await
+    let mut client = clients()
+        .write()
+        .remove(&session_id)
         .ok_or(SshError::NotConnected)?;
 
-    client.execute(&command).await
+    let result = client.execute(&command).await;
+
+    // Put the client back
+    clients().write().insert(session_id, client);
+
+    result
 }

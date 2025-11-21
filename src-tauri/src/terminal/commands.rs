@@ -1,9 +1,9 @@
 //! Terminal Tauri Commands
 
-use super::{manager, TerminalError, TerminalInfo};
-use crate::ssh::client::{AuthMethod, SshConfig};
+use super::{manager::manager, TerminalError, TerminalInfo};
+use crate::ssh::{AuthMethod, SshConfig};
 use uuid::Uuid;
-use tauri::{AppHandle, State};
+use tauri::AppHandle;
 
 /// Create a new terminal session
 #[tauri::command]

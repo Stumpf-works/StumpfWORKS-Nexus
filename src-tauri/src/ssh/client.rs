@@ -269,7 +269,7 @@ impl SshClient {
     pub async fn execute(&mut self, command: &str) -> Result<CommandOutput, SshError> {
         let session = self.session.as_mut().ok_or(SshError::NotConnected)?;
 
-        let channel = session.channel_open_session().await?;
+        let mut channel = session.channel_open_session().await?;
         channel.exec(true, command).await?;
 
         let mut stdout = Vec::new();
