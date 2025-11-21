@@ -6,12 +6,14 @@
 //! - Snippets
 //! - Settings
 //!
-//! Uses libsodium for encryption
+//! Uses ChaCha20-Poly1305 for encryption and Argon2id for key derivation
 
 pub mod commands;
-mod storage;
+pub mod crypto;
 mod models;
+mod storage;
 
+pub use crypto::{DataSphereCrypto, EncryptedData, VaultFile};
 pub use models::*;
 pub use storage::DataSphereStorage;
 
