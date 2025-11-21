@@ -95,7 +95,7 @@ impl TerminalSession {
                 tokio::select! {
                     // Handle input data
                     Some(data) = input_rx.recv() => {
-                        if let Err(e) = channel.data(&data).await {
+                        if let Err(e) = channel.data(&data[..]).await {
                             tracing::error!("Failed to send data to channel: {}", e);
                             break;
                         }
