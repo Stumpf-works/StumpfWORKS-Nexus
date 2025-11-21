@@ -89,6 +89,9 @@ impl TerminalSession {
         let (input_tx, mut input_rx) = mpsc::channel::<Vec<u8>>(100);
         let (resize_tx, mut resize_rx) = mpsc::channel::<(u32, u32)>(10);
 
+        // Clone app handle for the task
+        let app_clone = app.clone();
+
         // Spawn task to handle input and resize
         tokio::spawn(async move {
             loop {
@@ -111,20 +114,20 @@ impl TerminalSession {
                         match msg {
                             Some(russh::ChannelMsg::Data { data }) => {
                                 let text = String::from_utf8_lossy(&data).to_string();
-                                let _ = app.emit(
+                                let _ = app_clone.emit(
                                     &format!("terminal-data-{}", session_id),
                                     TerminalEvent::Data(text),
                                 );
                             }
                             Some(russh::ChannelMsg::ExtendedData { data, ext: 1 }) => {
                                 let text = String::from_utf8_lossy(&data).to_string();
-                                let _ = app.emit(
+                                let _ = app_clone.emit(
                                     &format!("terminal-data-{}", session_id),
                                     TerminalEvent::Data(text),
                                 );
                             }
                             Some(russh::ChannelMsg::Eof) | None => {
-                                let _ = app.emit(
+                                let _ = app_clone.emit(
                                     &format!("terminal-data-{}", session_id),
                                     TerminalEvent::Disconnected,
                                 );
