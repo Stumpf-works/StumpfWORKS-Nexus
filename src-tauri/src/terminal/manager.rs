@@ -26,7 +26,8 @@ pub struct TerminalSession {
     pub cols: u32,
     pub rows: u32,
     ssh_client: Option<SshClient>,
-    data_tx: Option<mpsc::Sender<Vec<u8>>>,
+    input_tx: Option<mpsc::Sender<Vec<u8>>>,
+    resize_tx: Option<mpsc::Sender<(u32, u32)>>,
 }
 
 impl TerminalSession {
@@ -38,7 +39,8 @@ impl TerminalSession {
             cols: 80,
             rows: 24,
             ssh_client: None,
-            data_tx: None,
+            input_tx: None,
+            resize_tx: None,
         }
     }
 
@@ -50,7 +52,8 @@ impl TerminalSession {
             cols: 80,
             rows: 24,
             ssh_client: None,
-            data_tx: None,
+            input_tx: None,
+            resize_tx: None,
         }
     }
 
@@ -75,42 +78,61 @@ impl TerminalSession {
             .map_err(|e| TerminalError::ConnectionFailed(e.to_string()))?;
 
         // Open shell with PTY
-        let channel = client
+        let mut channel = client
             .open_shell(self.cols, self.rows)
             .await
             .map_err(|e| TerminalError::Ssh(e.to_string()))?;
 
         let session_id = self.id;
 
-        // Spawn task to read from SSH and emit to frontend
-        let app_clone = app.clone();
-        let mut channel = channel;
+        // Create channels for input and resize
+        let (input_tx, mut input_rx) = mpsc::channel::<Vec<u8>>(100);
+        let (resize_tx, mut resize_rx) = mpsc::channel::<(u32, u32)>(10);
+
+        // Spawn task to handle input and resize
         tokio::spawn(async move {
             loop {
-                match channel.wait().await {
-                    Some(russh::ChannelMsg::Data { data }) => {
-                        let text = String::from_utf8_lossy(&data).to_string();
-                        let _ = app_clone.emit(
-                            &format!("terminal-data-{}", session_id),
-                            TerminalEvent::Data(text),
-                        );
+                tokio::select! {
+                    // Handle input data
+                    Some(data) = input_rx.recv() => {
+                        if let Err(e) = channel.data(&data).await {
+                            tracing::error!("Failed to send data to channel: {}", e);
+                            break;
+                        }
                     }
-                    Some(russh::ChannelMsg::ExtendedData { data, ext: 1 }) => {
-                        // stderr
-                        let text = String::from_utf8_lossy(&data).to_string();
-                        let _ = app_clone.emit(
-                            &format!("terminal-data-{}", session_id),
-                            TerminalEvent::Data(text),
-                        );
+                    // Handle resize
+                    Some((cols, rows)) = resize_rx.recv() => {
+                        if let Err(e) = channel.window_change(cols, rows, 0, 0).await {
+                            tracing::error!("Failed to resize channel: {}", e);
+                        }
                     }
-                    Some(russh::ChannelMsg::Eof) | None => {
-                        let _ = app_clone.emit(
-                            &format!("terminal-data-{}", session_id),
-                            TerminalEvent::Disconnected,
-                        );
-                        break;
+                    // Read from SSH
+                    msg = channel.wait() => {
+                        match msg {
+                            Some(russh::ChannelMsg::Data { data }) => {
+                                let text = String::from_utf8_lossy(&data).to_string();
+                                let _ = app.emit(
+                                    &format!("terminal-data-{}", session_id),
+                                    TerminalEvent::Data(text),
+                                );
+                            }
+                            Some(russh::ChannelMsg::ExtendedData { data, ext: 1 }) => {
+                                let text = String::from_utf8_lossy(&data).to_string();
+                                let _ = app.emit(
+                                    &format!("terminal-data-{}", session_id),
+                                    TerminalEvent::Data(text),
+                                );
+                            }
+                            Some(russh::ChannelMsg::Eof) | None => {
+                                let _ = app.emit(
+                                    &format!("terminal-data-{}", session_id),
+                                    TerminalEvent::Disconnected,
+                                );
+                                break;
+                            }
+                            _ => {}
+                        }
                     }
-                    _ => {}
                 }
             }
         });
@@ -122,14 +144,20 @@ impl TerminalSession {
         );
 
         self.ssh_client = Some(client);
+        self.input_tx = Some(input_tx);
+        self.resize_tx = Some(resize_tx);
         Ok(())
     }
 
     /// Send data to terminal
     pub async fn write(&mut self, data: &[u8]) -> Result<(), TerminalError> {
-        // TODO: Send to SSH channel
-        // For now, just log
-        tracing::debug!("Terminal write: {:?}", String::from_utf8_lossy(data));
+        if let Some(tx) = &self.input_tx {
+            tx.send(data.to_vec())
+                .await
+                .map_err(|e| TerminalError::Ssh(format!("Failed to send input: {}", e)))?;
+        } else {
+            return Err(TerminalError::Ssh("Not connected".to_string()));
+        }
         Ok(())
     }
 
@@ -137,13 +165,21 @@ impl TerminalSession {
     pub async fn resize(&mut self, cols: u32, rows: u32) -> Result<(), TerminalError> {
         self.cols = cols;
         self.rows = rows;
-        // TODO: Send resize to SSH channel
-        tracing::debug!("Terminal resize: {}x{}", cols, rows);
+
+        if let Some(tx) = &self.resize_tx {
+            tx.send((cols, rows))
+                .await
+                .map_err(|e| TerminalError::Ssh(format!("Failed to send resize: {}", e)))?;
+        }
         Ok(())
     }
 
     /// Disconnect
     pub async fn disconnect(&mut self) -> Result<(), TerminalError> {
+        // Drop the channels to signal the task to stop
+        self.input_tx = None;
+        self.resize_tx = None;
+
         if let Some(mut client) = self.ssh_client.take() {
             client
                 .disconnect()
