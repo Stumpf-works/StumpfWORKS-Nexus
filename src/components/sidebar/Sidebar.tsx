@@ -12,6 +12,7 @@ import * as Accordion from "@radix-ui/react-accordion";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import { useHostStore, Host, HostGroup } from "../../store/hostStore";
 import { useSessionStore } from "../../store/sessionStore";
+import HostEditor from "../ui/HostEditor";
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export default function Sidebar() {
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [isResizing, setIsResizing] = useState(false);
   const [width, setWidth] = useState(240);
+  const [isHostEditorOpen, setIsHostEditorOpen] = useState(false);
+  const [editingHost, setEditingHost] = useState<Host | null>(null);
 
   useEffect(() => {
     fetchHosts();
@@ -40,6 +43,21 @@ export default function Sidebar() {
     } catch (error) {
       console.error("Failed to create session:", error);
     }
+  };
+
+  const handleAddServer = () => {
+    setEditingHost(null);
+    setIsHostEditorOpen(true);
+  };
+
+  const handleEditHost = (host: Host) => {
+    setEditingHost(host);
+    setIsHostEditorOpen(true);
+  };
+
+  const handleCloseEditor = () => {
+    setIsHostEditorOpen(false);
+    setEditingHost(null);
   };
 
   const handleMouseDown = () => {
@@ -80,7 +98,7 @@ export default function Sidebar() {
           Servers
         </span>
         <button
-          onClick={() => navigate("/settings?tab=hosts")}
+          onClick={handleAddServer}
           className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
           title="Add server"
         >
@@ -115,7 +133,7 @@ export default function Sidebar() {
                     key={host.id}
                     host={host}
                     onConnect={() => handleConnect(host)}
-                    onEdit={() => navigate(`/settings?tab=hosts&edit=${host.id}`)}
+                    onEdit={() => handleEditHost(host)}
                     onDelete={() => deleteHost(host.id)}
                   />
                 ))}
@@ -129,7 +147,7 @@ export default function Sidebar() {
               key={host.id}
               host={host}
               onConnect={() => handleConnect(host)}
-              onEdit={() => navigate(`/settings?tab=hosts&edit=${host.id}`)}
+              onEdit={() => handleEditHost(host)}
               onDelete={() => deleteHost(host.id)}
             />
           ))}
@@ -141,7 +159,7 @@ export default function Sidebar() {
             <Server className="w-12 h-12 text-text-secondary mb-3" />
             <p className="text-sm text-text-secondary">No servers yet</p>
             <button
-              onClick={() => navigate("/settings?tab=hosts")}
+              onClick={handleAddServer}
               className="mt-3 btn-primary text-sm"
             >
               Add Server
@@ -154,6 +172,13 @@ export default function Sidebar() {
       <div
         className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-accent/50 transition-colors"
         onMouseDown={handleMouseDown}
+      />
+
+      {/* Host Editor Dialog */}
+      <HostEditor
+        host={editingHost}
+        isOpen={isHostEditorOpen}
+        onClose={handleCloseEditor}
       />
     </div>
   );
