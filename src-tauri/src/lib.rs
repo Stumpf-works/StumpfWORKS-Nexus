@@ -17,7 +17,6 @@ pub mod ssh;
 pub mod terminal;
 pub mod utils;
 
-use tauri::Manager;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

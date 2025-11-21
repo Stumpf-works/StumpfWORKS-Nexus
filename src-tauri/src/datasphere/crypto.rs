@@ -40,7 +40,7 @@ impl DataSphereCrypto {
     /// Create a new crypto instance with a derived key from password
     pub fn from_password(password: &str, salt: &[u8]) -> Result<Self, DataSphereError> {
         let key = Self::derive_key(password, salt)?;
-        let cipher = ChaCha20Poly1305::new(Key::from_slice(&key));
+        let cipher = ChaCha20Poly1305::new(Key::from_slice(key.as_slice()));
         Ok(Self { cipher })
     }
 
