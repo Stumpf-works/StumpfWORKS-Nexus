@@ -1,9 +1,9 @@
 //! SFTP Session Manager
 
-use super::{SftpClient, SftpError};
-use crate::ssh::SshClient;
+use super::SftpClient;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
+use russh_sftp::client::SftpSession;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -28,27 +28,11 @@ impl SftpManager {
         }
     }
 
-    /// Create SFTP session for a terminal session
-    pub async fn create_session(
-        &mut self,
-        session_id: Uuid,
-        ssh_client: &mut SshClient,
-    ) -> Result<(), SftpError> {
-        tracing::info!("Creating SFTP session for terminal {}", session_id);
-
-        // Open SFTP channel
-        let channel = ssh_client
-            .open_sftp_channel()
-            .await
-            .map_err(|e| SftpError::Ssh(format!("Failed to open SFTP channel: {}", e)))?;
-
-        // Create SFTP client
-        let sftp_client = SftpClient::from_channel(channel).await?;
-
-        self.sessions.insert(session_id, sftp_client);
-
-        tracing::info!("SFTP session created for terminal {}", session_id);
-        Ok(())
+    /// Create SFTP session from an existing SFTP session
+    pub fn add_session(&mut self, session_id: Uuid, sftp_session: SftpSession) {
+        tracing::info!("Adding SFTP session for terminal {}", session_id);
+        let client = SftpClient::new(sftp_session);
+        self.sessions.insert(session_id, client);
     }
 
     /// Get SFTP client for a session
