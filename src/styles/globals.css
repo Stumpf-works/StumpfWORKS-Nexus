@@ -62,8 +62,12 @@
 
   .btn-primary {
     @apply px-6 py-2.5 bg-gradient-to-r from-accent to-accent-light text-white rounded-xl font-medium
-           hover:shadow-glow hover:scale-105 active:scale-95 transition-all duration-300
+           hover:scale-105 active:scale-95 transition-all duration-300
            focus:outline-none focus:ring-2 focus:ring-accent/50;
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 0 20px rgba(10, 132, 255, 0.3);
   }
 
   .btn-secondary {
