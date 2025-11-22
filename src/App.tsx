@@ -31,7 +31,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="h-screen w-screen overflow-hidden bg-surface dark:bg-surface-dark">
+      <div className="h-screen w-screen overflow-hidden bg-[#0A0A0F]">
         <MainLayout>
           <Routes>
             <Route path="/" element={<Dashboard />} />
