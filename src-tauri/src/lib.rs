@@ -60,6 +60,14 @@ pub fn run() {
             datasphere::commands::add_snippet,
             datasphere::commands::get_settings,
             datasphere::commands::update_settings,
+            // Vault commands
+            datasphere::commands::get_vault_entries,
+            datasphere::commands::get_vault_entry,
+            datasphere::commands::add_vault_entry,
+            datasphere::commands::update_vault_entry,
+            datasphere::commands::delete_vault_entry,
+            datasphere::commands::search_vault,
+            datasphere::commands::get_vault_folders,
             // SSH commands
             ssh::commands::connect,
             ssh::commands::disconnect,

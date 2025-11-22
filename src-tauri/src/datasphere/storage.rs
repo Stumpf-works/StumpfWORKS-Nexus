@@ -1,6 +1,6 @@
 //! DataSphere Storage Implementation
 
-use super::{DataSphereError, Host, HostGroup, Settings, Snippet};
+use super::{DataSphereError, Host, HostGroup, Settings, Snippet, VaultEntry};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -14,6 +14,7 @@ pub struct DataSphereStorage {
     hosts: HashMap<Uuid, Host>,
     groups: HashMap<Uuid, HostGroup>,
     snippets: HashMap<Uuid, Snippet>,
+    vault_entries: HashMap<Uuid, VaultEntry>,
     settings: Settings,
 }
 
@@ -28,6 +29,7 @@ impl DataSphereStorage {
             hosts: HashMap::new(),
             groups: HashMap::new(),
             snippets: HashMap::new(),
+            vault_entries: HashMap::new(),
             settings: Settings::default(),
         };
 
@@ -65,11 +67,19 @@ impl DataSphereStorage {
             self.settings = serde_json::from_str(&data)?;
         }
 
+        // Load vault entries
+        let vault_path = self.data_dir.join("vault.json");
+        if vault_path.exists() {
+            let data = fs::read_to_string(&vault_path)?;
+            self.vault_entries = serde_json::from_str(&data)?;
+        }
+
         tracing::info!(
-            "Loaded {} hosts, {} groups, {} snippets",
+            "Loaded {} hosts, {} groups, {} snippets, {} vault entries",
             self.hosts.len(),
             self.groups.len(),
-            self.snippets.len()
+            self.snippets.len(),
+            self.vault_entries.len()
         );
 
         Ok(())
@@ -94,6 +104,10 @@ impl DataSphereStorage {
         // Save settings
         let settings_data = serde_json::to_string_pretty(&self.settings)?;
         fs::write(self.data_dir.join("settings.json"), settings_data)?;
+
+        // Save vault entries
+        let vault_data = serde_json::to_string_pretty(&self.vault_entries)?;
+        fs::write(self.data_dir.join("vault.json"), vault_data)?;
 
         Ok(())
     }
@@ -151,5 +165,68 @@ impl DataSphereStorage {
         self.settings = settings.clone();
         self.save()?;
         Ok(settings)
+    }
+
+    // Vault operations
+    pub fn get_vault_entries(&self) -> Vec<VaultEntry> {
+        self.vault_entries.values().cloned().collect()
+    }
+
+    pub fn get_vault_entry(&self, id: Uuid) -> Option<VaultEntry> {
+        self.vault_entries.get(&id).cloned()
+    }
+
+    pub fn add_vault_entry(&mut self, entry: VaultEntry) -> Result<VaultEntry, DataSphereError> {
+        self.vault_entries.insert(entry.id, entry.clone());
+        self.save()?;
+        Ok(entry)
+    }
+
+    pub fn update_vault_entry(&mut self, entry: VaultEntry) -> Result<VaultEntry, DataSphereError> {
+        if !self.vault_entries.contains_key(&entry.id) {
+            return Err(DataSphereError::NotFound(entry.id.to_string()));
+        }
+        self.vault_entries.insert(entry.id, entry.clone());
+        self.save()?;
+        Ok(entry)
+    }
+
+    pub fn delete_vault_entry(&mut self, id: Uuid) -> Result<(), DataSphereError> {
+        self.vault_entries.remove(&id);
+        self.save()?;
+        Ok(())
+    }
+
+    pub fn search_vault(&self, query: &str) -> Vec<VaultEntry> {
+        let query_lower = query.to_lowercase();
+        self.vault_entries
+            .values()
+            .filter(|entry| {
+                entry.name.to_lowercase().contains(&query_lower)
+                    || entry
+                        .username
+                        .as_ref()
+                        .map(|u| u.to_lowercase().contains(&query_lower))
+                        .unwrap_or(false)
+                    || entry.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
+                    || entry
+                        .folder
+                        .as_ref()
+                        .map(|f| f.to_lowercase().contains(&query_lower))
+                        .unwrap_or(false)
+            })
+            .cloned()
+            .collect()
+    }
+
+    pub fn get_vault_folders(&self) -> Vec<String> {
+        let mut folders: Vec<String> = self
+            .vault_entries
+            .values()
+            .filter_map(|entry| entry.folder.clone())
+            .collect();
+        folders.sort();
+        folders.dedup();
+        folders
     }
 }

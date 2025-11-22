@@ -1,6 +1,6 @@
 //! DataSphere Tauri Commands
 
-use super::{storage, DataSphereError, Host, HostGroup, NewHost, Settings, Snippet};
+use super::{storage, DataSphereError, Host, HostGroup, NewHost, NewVaultEntry, Settings, Snippet, VaultEntry};
 use uuid::Uuid;
 
 /// Get all hosts
@@ -74,4 +74,79 @@ pub fn update_settings(settings: Settings) -> Result<Settings, DataSphereError> 
     let mut storage = storage().write();
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.update_settings(settings)
+}
+
+// Vault commands
+
+/// Get all vault entries
+#[tauri::command]
+pub fn get_vault_entries() -> Result<Vec<VaultEntry>, DataSphereError> {
+    let storage = storage().read();
+    let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
+    Ok(storage.get_vault_entries())
+}
+
+/// Get a specific vault entry by ID
+#[tauri::command]
+pub fn get_vault_entry(id: Uuid) -> Result<Option<VaultEntry>, DataSphereError> {
+    let storage = storage().read();
+    let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
+    Ok(storage.get_vault_entry(id))
+}
+
+/// Add a new vault entry
+#[tauri::command]
+pub fn add_vault_entry(entry: NewVaultEntry) -> Result<VaultEntry, DataSphereError> {
+    let mut storage = storage().write();
+    let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
+
+    let vault_entry = VaultEntry {
+        id: Uuid::new_v4(),
+        name: entry.name,
+        entry_type: entry.entry_type,
+        username: entry.username,
+        secret: entry.secret,
+        url: entry.url,
+        notes: entry.notes,
+        tags: entry.tags,
+        folder: entry.folder,
+        favorite: false,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        last_used: None,
+    };
+
+    storage.add_vault_entry(vault_entry)
+}
+
+/// Update an existing vault entry
+#[tauri::command]
+pub fn update_vault_entry(entry: VaultEntry) -> Result<VaultEntry, DataSphereError> {
+    let mut storage = storage().write();
+    let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
+    storage.update_vault_entry(entry)
+}
+
+/// Delete a vault entry
+#[tauri::command]
+pub fn delete_vault_entry(id: Uuid) -> Result<(), DataSphereError> {
+    let mut storage = storage().write();
+    let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
+    storage.delete_vault_entry(id)
+}
+
+/// Search vault entries
+#[tauri::command]
+pub fn search_vault(query: String) -> Result<Vec<VaultEntry>, DataSphereError> {
+    let storage = storage().read();
+    let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
+    Ok(storage.search_vault(&query))
+}
+
+/// Get all vault folders
+#[tauri::command]
+pub fn get_vault_folders() -> Result<Vec<String>, DataSphereError> {
+    let storage = storage().read();
+    let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
+    Ok(storage.get_vault_folders())
 }

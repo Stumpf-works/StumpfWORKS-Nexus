@@ -5,6 +5,7 @@ import MainLayout from "./components/layout/MainLayout";
 import Dashboard from "./components/pages/Dashboard";
 import TerminalView from "./components/terminal/TerminalView";
 import SftpExplorer from "./components/sftp/SftpExplorer";
+import VaultManager from "./components/vault/VaultManager";
 import SnippetManager from "./components/snippets/SnippetManager";
 import Settings from "./components/settings/Settings";
 import CommandPalette from "./components/command-palette/CommandPalette";
@@ -36,6 +37,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/terminal/:sessionId?" element={<TerminalView />} />
             <Route path="/sftp/:sessionId?" element={<SftpExplorer />} />
+            <Route path="/vault" element={<VaultManager />} />
             <Route path="/snippets" element={<SnippetManager />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

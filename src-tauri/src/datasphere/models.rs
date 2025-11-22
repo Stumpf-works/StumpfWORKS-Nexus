@@ -198,3 +198,66 @@ pub enum SyncProvider {
     S3 { bucket: String, region: String },
     Nextcloud { url: String, username: String },
 }
+
+/// Vault entry for secure credential storage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultEntry {
+    pub id: Uuid,
+    pub name: String,
+    pub entry_type: VaultEntryType,
+    pub username: Option<String>,
+    pub secret: String, // Encrypted secret (password, key, or generic secret)
+    pub url: Option<String>,
+    pub notes: Option<String>,
+    pub tags: Vec<String>,
+    pub folder: Option<String>,
+    pub favorite: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub last_used: Option<DateTime<Utc>>,
+}
+
+impl VaultEntry {
+    pub fn new(name: String, entry_type: VaultEntryType, secret: String) -> Self {
+        let now = Utc::now();
+        Self {
+            id: Uuid::new_v4(),
+            name,
+            entry_type,
+            username: None,
+            secret,
+            url: None,
+            notes: None,
+            tags: vec![],
+            folder: None,
+            favorite: false,
+            created_at: now,
+            updated_at: now,
+            last_used: None,
+        }
+    }
+}
+
+/// New vault entry data (for creating entries)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewVaultEntry {
+    pub name: String,
+    pub entry_type: VaultEntryType,
+    pub username: Option<String>,
+    pub secret: String,
+    pub url: Option<String>,
+    pub notes: Option<String>,
+    pub tags: Vec<String>,
+    pub folder: Option<String>,
+}
+
+/// Type of vault entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultEntryType {
+    Password,        // Username + password
+    SshKey,          // SSH private key
+    ApiKey,          // API key/token
+    SecureNote,      // Generic secure note/secret
+    Certificate,     // SSL/TLS certificate
+}
