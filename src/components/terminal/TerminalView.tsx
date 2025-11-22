@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -9,6 +9,7 @@ import "@xterm/xterm/css/xterm.css";
 import { useSessionStore } from "../../store/sessionStore";
 import { useThemeStore } from "../../store/themeStore";
 import { useHostStore } from "../../store/hostStore";
+import PasswordDialog from "../ui/PasswordDialog";
 
 interface TerminalEvent {
   type: "Data" | "Connected" | "Disconnected" | "Error" | "Latency";
@@ -21,8 +22,13 @@ export default function TerminalView() {
   const terminalInstance = useRef<Terminal | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
   const { sessions, activeSessionId, updateSessionStatus } = useSessionStore();
-  const { hosts } = useHostStore();
+  const { hosts, updateHost } = useHostStore();
   const { resolvedTheme } = useThemeStore();
+
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [pendingConnection, setPendingConnection] = useState<any>(null);
+  const hasConnectedRef = useRef<string | null>(null);
+  const connectHostRef = useRef<(() => Promise<void>) | null>(null);
 
   const currentSessionId = sessionId || activeSessionId;
   const session = sessions.find((s) => s.id === currentSessionId);
@@ -48,35 +54,92 @@ export default function TerminalView() {
     }
   }, [currentSessionId]);
 
-  // Connect to SSH
-  const connectToHost = useCallback(async () => {
-    if (!currentSessionId || !host) return;
+  // Actually connect with credentials
+  const doConnect = useCallback(async (password?: string, keyPath?: string, passphrase?: string) => {
+    const currentHost = host;
+    if (!currentSessionId || !currentHost) return;
 
     const terminal = terminalInstance.current;
     if (!terminal) return;
 
-    terminal.writeln(`\x1b[33mConnecting to ${host.name}...\x1b[0m`);
+    terminal.writeln(`\x1b[33mConnecting to ${currentHost.name}...\x1b[0m`);
 
     try {
       await invoke("connect_terminal", {
         sessionId: currentSessionId,
-        host: host.hostname,
-        port: host.port,
-        username: host.username,
-        authType: host.auth_type,
-        password: null, // Would come from secure storage
-        keyPath: null,
-        passphrase: null,
+        host: currentHost.hostname,
+        port: currentHost.port,
+        username: currentHost.username,
+        authType: currentHost.auth_type,
+        password: password || null,
+        keyPath: keyPath || null,
+        passphrase: passphrase || null,
       });
 
       updateSessionStatus(currentSessionId, "connected");
-      terminal.writeln(`\x1b[32mConnected to ${host.name}\x1b[0m`);
+      terminal.writeln(`\x1b[32mConnected to ${currentHost.name}\x1b[0m`);
       terminal.writeln("");
     } catch (error) {
       updateSessionStatus(currentSessionId, "error");
       terminal.writeln(`\x1b[31mConnection failed: ${error}\x1b[0m`);
     }
-  }, [currentSessionId, host, updateSessionStatus]);
+  }, [currentSessionId, host?.id, updateSessionStatus]);
+
+  // Connect to SSH
+  const connectToHost = useCallback(async () => {
+    const currentHost = host;
+    if (!currentSessionId || !currentHost) return;
+
+    // Check if we have stored credentials
+    if (currentHost.auth_type === "password" && currentHost.password) {
+      // Use stored password
+      await doConnect(currentHost.password);
+    } else if (currentHost.auth_type === "private_key" && currentHost.private_key) {
+      // Use stored private key
+      await doConnect(undefined, currentHost.private_key, currentHost.passphrase || undefined);
+    } else if (currentHost.auth_type === "agent") {
+      // SSH agent doesn't need credentials
+      await doConnect();
+    } else {
+      // No stored credentials, show password dialog
+      setPendingConnection({ host: currentHost, sessionId: currentSessionId });
+      setShowPasswordDialog(true);
+    }
+  }, [currentSessionId, host?.id, host?.auth_type, host?.password, host?.private_key, host?.passphrase, doConnect]);
+
+  // Store connect function in ref
+  connectHostRef.current = connectToHost;
+
+  // Handle password dialog submit
+  const handlePasswordSubmit = useCallback(async (password: string, remember: boolean) => {
+    if (!pendingConnection) return;
+
+    setShowPasswordDialog(false);
+
+    const { host, sessionId } = pendingConnection;
+
+    // Save password if requested
+    if (remember && host) {
+      try {
+        await updateHost({
+          ...host,
+          password: host.auth_type === "password" ? password : null,
+          passphrase: host.auth_type === "private_key" ? password : null,
+        });
+      } catch (error) {
+        console.error("Failed to save credentials:", error);
+      }
+    }
+
+    // Connect with provided password
+    if (host.auth_type === "password") {
+      await doConnect(password);
+    } else if (host.auth_type === "private_key") {
+      await doConnect(undefined, host.private_key || undefined, password);
+    }
+
+    setPendingConnection(null);
+  }, [pendingConnection, doConnect, updateHost]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -186,12 +249,19 @@ export default function TerminalView() {
     };
   }, [currentSessionId, updateSessionStatus]);
 
-  // Auto-connect when session and host are available
+  // Auto-connect when session and host are available (only once)
   useEffect(() => {
-    if (session && host && session.status === "disconnected") {
-      connectToHost();
+    if (!session || !host) {
+      return;
     }
-  }, [session, host, connectToHost]);
+
+    // Only connect once per unique session
+    const sessionKey = `${session.id}-${host.id}`;
+    if (session.status === "disconnected" && hasConnectedRef.current !== sessionKey) {
+      hasConnectedRef.current = sessionKey;
+      connectHostRef.current?.();
+    }
+  }, [session?.id, host?.id, session?.status]);
 
   // Update theme
   useEffect(() => {
@@ -202,9 +272,26 @@ export default function TerminalView() {
   }, [resolvedTheme]);
 
   return (
-    <div className="h-full w-full bg-gray-900 dark:bg-black p-2">
-      <div ref={terminalRef} className="h-full w-full" />
-    </div>
+    <>
+      <div className="h-full w-full bg-gray-900 dark:bg-black p-2">
+        <div ref={terminalRef} className="h-full w-full" />
+      </div>
+
+      {/* Password Dialog */}
+      {host && (
+        <PasswordDialog
+          isOpen={showPasswordDialog}
+          onClose={() => {
+            setShowPasswordDialog(false);
+            setPendingConnection(null);
+          }}
+          onSubmit={handlePasswordSubmit}
+          authType={host.auth_type}
+          hostname={host.hostname}
+          username={host.username}
+        />
+      )}
+    </>
   );
 }
 

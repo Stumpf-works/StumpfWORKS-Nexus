@@ -76,9 +76,9 @@ export default function HostEditor({ host, isOpen, onClose }: HostEditorProps) {
           port: host.port,
           username: host.username,
           auth_type: host.auth_type,
-          password: "",
-          key_path: "",
-          passphrase: "",
+          password: host.password || "",
+          key_path: host.private_key || "",
+          passphrase: host.passphrase || "",
           group_id: host.group_id,
           tags: host.tags.join(", "),
           color: host.color || COLORS[0],
@@ -116,6 +116,9 @@ export default function HostEditor({ host, isOpen, onClose }: HostEditorProps) {
         port: formData.port,
         username: formData.username,
         auth_type: formData.auth_type,
+        password: formData.auth_type === "password" ? (formData.password || null) : null,
+        private_key: formData.auth_type === "private_key" ? (formData.key_path || null) : null,
+        passphrase: formData.auth_type === "private_key" ? (formData.passphrase || null) : null,
         group_id: formData.group_id,
         tags: formData.tags
           .split(",")

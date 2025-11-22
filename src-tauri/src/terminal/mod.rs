@@ -3,9 +3,9 @@
 //! Manages terminal sessions and bridges SSH I/O with the frontend
 
 pub mod commands;
-mod manager;
+pub mod manager;
 
-pub use manager::{TerminalManager, TerminalSession};
+pub use manager::{manager, TerminalManager, TerminalSession};
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

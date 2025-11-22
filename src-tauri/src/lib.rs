@@ -70,6 +70,9 @@ pub fn run() {
             sftp::commands::download_file,
             sftp::commands::delete_path,
             sftp::commands::create_directory,
+            sftp::commands::list_local_directory,
+            sftp::commands::create_local_directory,
+            sftp::commands::delete_local_path,
             // Session commands
             session::commands::get_sessions,
             session::commands::create_session,

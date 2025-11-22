@@ -3,6 +3,7 @@ import {
   Terminal,
   FolderOpen,
   Code2,
+  Database,
   Settings,
   Search,
 } from "lucide-react";
@@ -16,6 +17,7 @@ export default function TitleBar() {
   const navItems = [
     { path: "/terminal", icon: Terminal, label: "Terminal" },
     { path: "/sftp", icon: FolderOpen, label: "SFTP" },
+    { path: "/vault", icon: Database, label: "Vault" },
     { path: "/snippets", icon: Code2, label: "Snippets" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];

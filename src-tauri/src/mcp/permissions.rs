@@ -2,7 +2,7 @@
 //!
 //! Manages user permissions for MCP abilities
 
-use super::{AiProvider, McpAbility, McpError};
+use super::{AiProvider, McpAbility};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
