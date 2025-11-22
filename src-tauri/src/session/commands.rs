@@ -19,7 +19,7 @@ pub async fn create_session(host_id: Uuid, name: String) -> Session {
 #[tauri::command]
 pub async fn close_session(id: Uuid) -> Result<(), SessionError> {
     manager()
-        .write()
+        .write().await
         .close_session(id)
         .map(|_| ())
         .ok_or_else(|| SessionError::NotFound(id.to_string()))
