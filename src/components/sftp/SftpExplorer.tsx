@@ -12,7 +12,9 @@ import {
   Home,
 } from "lucide-react";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
+import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "../../store/sessionStore";
+import { useHostStore } from "../../store/hostStore";
 
 interface FileEntry {
   name: string;
@@ -21,35 +23,98 @@ interface FileEntry {
   size: number;
   modified: string | null;
   permissions: string | null;
+  owner: string | null;
+  group: string | null;
 }
 
 export default function SftpExplorer() {
   const { sessionId } = useParams<{ sessionId?: string }>();
   const { sessions, activeSessionId } = useSessionStore();
-  const [currentPath, setCurrentPath] = useState("/home");
+  const { hosts } = useHostStore();
+  const [currentPath, setCurrentPath] = useState("/");
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const session = sessions.find(
     (s) => s.id === (sessionId || activeSessionId)
   );
 
-  // Mock file data
+  // Connect to SFTP when component mounts
   useEffect(() => {
-    setIsLoading(true);
-    // Simulated file listing
-    setTimeout(() => {
-      setFiles([
-        { name: "..", path: "/", is_dir: true, size: 0, modified: null, permissions: "drwxr-xr-x" },
-        { name: "Documents", path: "/home/Documents", is_dir: true, size: 4096, modified: "2024-01-15T10:30:00Z", permissions: "drwxr-xr-x" },
-        { name: "Projects", path: "/home/Projects", is_dir: true, size: 4096, modified: "2024-01-14T08:00:00Z", permissions: "drwxr-xr-x" },
-        { name: ".bashrc", path: "/home/.bashrc", is_dir: false, size: 3526, modified: "2024-01-10T12:00:00Z", permissions: "-rw-r--r--" },
-        { name: "config.json", path: "/home/config.json", is_dir: false, size: 1234, modified: "2024-01-12T14:30:00Z", permissions: "-rw-r--r--" },
-      ]);
+    if (session) {
+      connectSftp();
+    }
+  }, [session]);
+
+  const connectSftp = async () => {
+    if (!session) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const host = hosts.find((h) => h.id === session.host_id);
+      if (!host) {
+        throw new Error("Host not found");
+      }
+
+      const config = {
+        host: host.hostname,
+        port: host.port,
+        username: host.username,
+        auth_method: host.password
+          ? { type: "Password", data: host.password }
+          : { type: "Agent" },
+        timeout_seconds: 30,
+      };
+
+      await invoke("connect_sftp", {
+        sessionId: session.id,
+        hostId: host.id,
+        hostName: host.name,
+        config,
+      });
+
+      setIsConnected(true);
+      loadDirectory(currentPath);
+    } catch (err) {
+      console.error("Failed to connect SFTP:", err);
+      setError(err instanceof Error ? err.message : String(err));
+      setIsConnected(false);
+    } finally {
       setIsLoading(false);
-    }, 500);
-  }, [currentPath]);
+    }
+  };
+
+  const loadDirectory = async (path: string) => {
+    if (!session || !isConnected) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const entries = await invoke<FileEntry[]>("list_directory", {
+        sessionId: session.id,
+        path,
+      });
+
+      setFiles(entries);
+    } catch (err) {
+      console.error("Failed to list directory:", err);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isConnected) {
+      loadDirectory(currentPath);
+    }
+  }, [currentPath, isConnected]);
 
   const handleNavigate = (entry: FileEntry) => {
     if (entry.is_dir) {
@@ -89,10 +154,101 @@ export default function SftpExplorer() {
     return new Date(dateStr).toLocaleDateString();
   };
 
+  const handleRefresh = () => {
+    loadDirectory(currentPath);
+  };
+
+  const handleCreateFolder = async () => {
+    if (!session || !isConnected) return;
+
+    const folderName = prompt("Enter folder name:");
+    if (!folderName) return;
+
+    try {
+      setIsLoading(true);
+      const newPath = currentPath.endsWith("/")
+        ? `${currentPath}${folderName}`
+        : `${currentPath}/${folderName}`;
+
+      await invoke("create_directory", {
+        sessionId: session.id,
+        path: newPath,
+      });
+
+      loadDirectory(currentPath);
+    } catch (err) {
+      console.error("Failed to create folder:", err);
+      alert(`Failed to create folder: ${err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!session || !isConnected || selectedFiles.size === 0) return;
+
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedFiles.size} item(s)?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      for (const filePath of selectedFiles) {
+        const file = files.find((f) => f.path === filePath);
+        if (file) {
+          await invoke("delete_path", {
+            sessionId: session.id,
+            path: filePath,
+            isDir: file.is_dir,
+          });
+        }
+      }
+
+      setSelectedFiles(new Set());
+      loadDirectory(currentPath);
+    } catch (err) {
+      console.error("Failed to delete:", err);
+      alert(`Failed to delete: ${err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const pathParts = currentPath.split("/").filter(Boolean);
 
   return (
     <div className="h-full flex flex-col">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-error/10 border-b border-error text-error px-4 py-2 text-sm">
+          <strong>Error:</strong> {error}
+          <button
+            onClick={() => setError(null)}
+            className="ml-2 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Connection Status */}
+      {!isConnected && !isLoading && (
+        <div className="bg-warning/10 border-b border-warning text-warning px-4 py-2 text-sm">
+          Not connected to SFTP server.
+          <button
+            onClick={connectSftp}
+            className="ml-2 underline"
+          >
+            Reconnect
+          </button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="h-12 flex items-center justify-between px-4 border-b border-border dark:border-border-dark bg-white dark:bg-gray-800">
         {/* Breadcrumb */}
@@ -121,37 +277,40 @@ export default function SftpExplorer() {
         {/* Actions */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {}}
-            className="btn-ghost flex items-center gap-1"
+            onClick={handleRefresh}
+            disabled={!isConnected || isLoading}
+            className="btn-ghost flex items-center gap-1 disabled:opacity-50"
             title="Refresh"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </button>
           <button
-            onClick={() => {}}
-            className="btn-ghost flex items-center gap-1"
+            onClick={handleCreateFolder}
+            disabled={!isConnected || isLoading}
+            className="btn-ghost flex items-center gap-1 disabled:opacity-50"
             title="New folder"
           >
             <FolderPlus className="w-4 h-4" />
           </button>
           <button
-            onClick={() => {}}
-            className="btn-ghost flex items-center gap-1"
+            onClick={() => alert("Upload functionality coming soon!")}
+            disabled={!isConnected || isLoading}
+            className="btn-ghost flex items-center gap-1 disabled:opacity-50"
             title="Upload"
           >
             <Upload className="w-4 h-4" />
           </button>
           <button
-            onClick={() => {}}
-            disabled={selectedFiles.size === 0}
+            onClick={() => alert("Download functionality coming soon!")}
+            disabled={!isConnected || isLoading || selectedFiles.size === 0}
             className="btn-ghost flex items-center gap-1 disabled:opacity-50"
             title="Download"
           >
             <Download className="w-4 h-4" />
           </button>
           <button
-            onClick={() => {}}
-            disabled={selectedFiles.size === 0}
+            onClick={handleDelete}
+            disabled={!isConnected || isLoading || selectedFiles.size === 0}
             className="btn-ghost flex items-center gap-1 text-error disabled:opacity-50"
             title="Delete"
           >

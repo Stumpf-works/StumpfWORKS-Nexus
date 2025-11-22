@@ -65,6 +65,8 @@ pub fn run() {
             ssh::commands::disconnect,
             ssh::commands::send_command,
             // SFTP commands
+            sftp::commands::connect_sftp,
+            sftp::commands::disconnect_sftp,
             sftp::commands::list_directory,
             sftp::commands::upload_file,
             sftp::commands::download_file,

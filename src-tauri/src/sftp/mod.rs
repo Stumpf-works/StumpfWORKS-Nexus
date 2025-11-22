@@ -4,8 +4,10 @@
 
 pub mod commands;
 mod client;
+mod manager;
 
 pub use client::SftpClient;
+pub use manager::{manager, SftpManager, SftpSession};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
