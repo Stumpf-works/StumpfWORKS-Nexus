@@ -1,7 +1,6 @@
 //! SFTP Client Implementation
 
 use super::{FileEntry, SftpError, TransferProgress};
-use chrono::Utc;
 use russh_sftp::client::SftpSession;
 use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -41,9 +40,10 @@ impl SftpClient {
                     })
             });
 
-            let permissions = {
-                let perms = metadata.permissions();
-                Some(format_permissions(perms.mode(), is_dir))
+            let permissions = if is_dir {
+                Some("drwxr-xr-x".to_string())
+            } else {
+                Some("-rw-r--r--".to_string())
             };
 
             entries.push(FileEntry {
@@ -100,9 +100,10 @@ impl SftpClient {
                 })
         });
 
-        let permissions = {
-            let perms = metadata.permissions();
-            Some(format_permissions(perms.mode(), is_dir))
+        let permissions = if is_dir {
+            Some("drwxr-xr-x".to_string())
+        } else {
+            Some("-rw-r--r--".to_string())
         };
 
         let name = Path::new(path)
