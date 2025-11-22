@@ -10,9 +10,6 @@ import {
   Info,
   ChevronDown,
   Check,
-  Moon,
-  Sun,
-  Laptop,
 } from "lucide-react";
 import { useThemeStore } from "../../store/themeStore";
 
@@ -32,21 +29,19 @@ export default function Settings() {
   ];
 
   return (
-    <div className="h-full flex">
-      <Tabs.Root defaultValue="general" className="flex w-full">
-        {/* Sidebar */}
-        <Tabs.List className="w-56 border-r border-border dark:border-border-dark p-2 flex flex-col gap-1">
+    <div className="h-full flex p-6 gap-6 animate-fade-in">
+      <Tabs.Root defaultValue="general" className="flex w-full gap-6">
+        <Tabs.List className="w-64 glass-panel p-3 flex flex-col gap-2 h-fit">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <Tabs.Trigger
                 key={tab.id}
                 value={tab.id}
-                className="flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-left
-                           text-text-primary dark:text-text-primary-dark
-                           hover:bg-gray-100 dark:hover:bg-gray-800
-                           data-[state=active]:bg-accent data-[state=active]:text-white
-                           transition-colors"
+                className="flex items-center gap-3 px-4 py-3 text-sm rounded-xl text-left
+                           text-white hover:bg-white/5
+                           data-[state=active]:bg-gradient-to-r data-[state=active]:from-accent data-[state=active]:to-accent-light
+                           transition-all"
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
@@ -55,86 +50,47 @@ export default function Settings() {
           })}
         </Tabs.List>
 
-        {/* Content */}
-        <div className="flex-1 p-6 overflow-auto">
-          {/* General Settings */}
+        <div className="flex-1 overflow-auto space-y-6">
           <Tabs.Content value="general" className="space-y-6">
-            <h2 className="text-xl font-semibold text-text-primary dark:text-text-primary-dark">
-              General Settings
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                General Settings
+              </h2>
+              <p className="text-text-secondary">
+                Configure your application preferences
+              </p>
+            </div>
 
-            {/* Theme */}
-            <div className="card p-4">
-              <h3 className="font-medium text-text-primary dark:text-text-primary-dark mb-4">
+            <div className="floating-card space-y-6">
+              <h3 className="text-lg font-semibold text-white">
                 Appearance
               </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium text-text-primary dark:text-text-primary-dark">
-                      Theme
-                    </label>
-                    <p className="text-xs text-text-secondary">
-                      Choose your preferred color scheme
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {[
-                      { value: "light", icon: Sun, label: "Light" },
-                      { value: "dark", icon: Moon, label: "Dark" },
-                      { value: "system", icon: Laptop, label: "System" },
-                    ].map((option) => {
-                      const Icon = option.icon;
-                      return (
-                        <button
-                          key={option.value}
-                          onClick={() => setTheme(option.value as any)}
-                          className={`
-                            flex items-center gap-2 px-3 py-2 rounded-lg border text-sm
-                            ${
-                              theme === option.value
-                                ? "border-accent bg-accent/10 text-accent"
-                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
-                            }
-                          `}
-                        >
-                          <Icon className="w-4 h-4" />
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium text-text-primary dark:text-text-primary-dark">
-                      Font Size
-                    </label>
-                    <p className="text-xs text-text-secondary">
-                      Terminal font size
-                    </p>
-                  </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-white block mb-3">
+                    Font Size
+                  </label>
                   <Select.Root
                     value={String(fontSize)}
                     onValueChange={(v) => setFontSize(Number(v))}
                   >
-                    <Select.Trigger className="input w-24 flex items-center justify-between">
-                      <Select.Value />
+                    <Select.Trigger className="glass-button w-full flex items-center justify-between">
+                      <span className="text-white">{fontSize}px</span>
                       <ChevronDown className="w-4 h-4 text-text-secondary" />
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className="bg-white dark:bg-gray-800 rounded-macos shadow-macos border border-gray-200 dark:border-gray-700 p-1">
+                      <Select.Content className="glass-card p-2 shadow-glass-lg z-50">
                         <Select.Viewport>
                           {[12, 13, 14, 15, 16, 18, 20].map((size) => (
                             <Select.Item
                               key={size}
                               value={String(size)}
-                              className="flex items-center justify-between px-3 py-1.5 rounded cursor-pointer outline-none hover:bg-accent hover:text-white text-sm"
+                              className="flex items-center justify-between px-4 py-2 rounded-lg cursor-pointer outline-none hover:bg-white/10 text-white"
                             >
                               <Select.ItemText>{size}px</Select.ItemText>
                               <Select.ItemIndicator>
-                                <Check className="w-4 h-4" />
+                                <Check className="w-4 h-4 text-accent" />
                               </Select.ItemIndicator>
                             </Select.Item>
                           ))}
@@ -146,9 +102,8 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Terminal */}
-            <div className="card p-4">
-              <h3 className="font-medium text-text-primary dark:text-text-primary-dark mb-4">
+            <div className="floating-card space-y-6">
+              <h3 className="text-lg font-semibold text-white">
                 Terminal
               </h3>
               <div className="space-y-4">
@@ -174,71 +129,92 @@ export default function Settings() {
             </div>
           </Tabs.Content>
 
-          {/* SSH Keys */}
           <Tabs.Content value="keys" className="space-y-6">
-            <h2 className="text-xl font-semibold text-text-primary dark:text-text-primary-dark">
-              SSH Keys
-            </h2>
-            <div className="card p-4">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                SSH Keys
+              </h2>
               <p className="text-text-secondary">
-                Manage your SSH keys for authentication.
+                Manage your SSH keys for authentication
               </p>
-              <button className="btn-primary mt-4">Import Key</button>
+            </div>
+            <div className="floating-card text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto">
+                <Key className="w-8 h-8 text-accent" />
+              </div>
+              <p className="text-text-secondary">
+                SSH key management coming soon
+              </p>
+              <button className="btn-primary">Import Key</button>
             </div>
           </Tabs.Content>
 
-          {/* DataSphere */}
           <Tabs.Content value="datasphere" className="space-y-6">
-            <h2 className="text-xl font-semibold text-text-primary dark:text-text-primary-dark">
-              DataSphere
-            </h2>
-            <div className="card p-4">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                DataSphere
+              </h2>
               <p className="text-text-secondary">
-                Configure end-to-end encrypted storage and sync settings.
+                End-to-end encrypted storage and sync
               </p>
-              <div className="mt-4 space-y-4">
-                <SettingRow
-                  label="Enable Sync"
-                  description="Sync data across devices"
-                  checked={false}
-                  onCheckedChange={() => {}}
-                />
-              </div>
+            </div>
+            <div className="floating-card space-y-4">
+              <SettingRow
+                label="Enable Sync"
+                description="Sync data across devices (coming soon)"
+                checked={false}
+                onCheckedChange={() => {}}
+              />
             </div>
           </Tabs.Content>
 
-          {/* Plugins */}
           <Tabs.Content value="plugins" className="space-y-6">
-            <h2 className="text-xl font-semibold text-text-primary dark:text-text-primary-dark">
-              Plugins
-            </h2>
-            <div className="card p-4">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Plugins
+              </h2>
               <p className="text-text-secondary">
-                Extend Nexus functionality with plugins.
+                Extend Nexus functionality with plugins
               </p>
-              <button className="btn-primary mt-4">Browse Plugins</button>
+            </div>
+            <div className="floating-card text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto">
+                <Plug className="w-8 h-8 text-purple" />
+              </div>
+              <p className="text-text-secondary">
+                Plugin marketplace coming soon
+              </p>
+              <button className="btn-primary">Browse Plugins</button>
             </div>
           </Tabs.Content>
 
-          {/* About */}
           <Tabs.Content value="about" className="space-y-6">
-            <h2 className="text-xl font-semibold text-text-primary dark:text-text-primary-dark">
-              About StumpfWORKS Nexus
-            </h2>
-            <div className="card p-6 text-center">
-              <div className="w-20 h-20 bg-accent rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <span className="text-3xl font-bold text-white">N</span>
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                About
+              </h2>
+              <p className="text-text-secondary">
+                Version and build information
+              </p>
+            </div>
+            <div className="floating-card text-center space-y-4">
+              <div className="w-24 h-24 bg-gradient-to-br from-accent to-accent-light rounded-2xl mx-auto flex items-center justify-center">
+                <span className="text-4xl font-bold text-white">N</span>
               </div>
-              <h3 className="text-lg font-semibold text-text-primary dark:text-text-primary-dark">
-                StumpfWORKS Nexus
-              </h3>
-              <p className="text-text-secondary">Version 0.1.0</p>
-              <p className="text-sm text-text-secondary mt-4">
-                Modern SSH, SFTP & DevOps Tool
-              </p>
-              <p className="text-xs text-text-secondary mt-2">
-                Built with Tauri, Rust, and React
-              </p>
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  StumpfWORKS Nexus
+                </h3>
+                <p className="text-text-secondary mt-1">Version 0.1.0</p>
+              </div>
+              <div className="glass-panel space-y-2 text-sm">
+                <p className="text-white font-medium">
+                  Modern SSH, SFTP & DevOps Tool
+                </p>
+                <p className="text-text-secondary">
+                  Built with Tauri 2.0, Rust & React
+                </p>
+              </div>
             </div>
           </Tabs.Content>
         </div>
@@ -263,7 +239,7 @@ function SettingRow({
   return (
     <div className="flex items-center justify-between">
       <div>
-        <label className="text-sm font-medium text-text-primary dark:text-text-primary-dark">
+        <label className="text-sm font-medium text-white">
           {label}
         </label>
         <p className="text-xs text-text-secondary">{description}</p>
@@ -271,9 +247,9 @@ function SettingRow({
       <Switch.Root
         checked={checked}
         onCheckedChange={onCheckedChange}
-        className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full relative data-[state=checked]:bg-accent transition-colors"
+        className="w-11 h-6 bg-white/10 rounded-full relative data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-accent data-[state=checked]:to-accent-light transition-all"
       >
-        <Switch.Thumb className="block w-5 h-5 bg-white rounded-full shadow transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
+        <Switch.Thumb className="block w-5 h-5 bg-white rounded-full shadow-lg transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
       </Switch.Root>
     </div>
   );

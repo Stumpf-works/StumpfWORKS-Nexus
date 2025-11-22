@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronRight,
-  ChevronDown,
   Server,
   Folder,
   Plus,
@@ -10,18 +9,17 @@ import {
 } from "lucide-react";
 import * as Accordion from "@radix-ui/react-accordion";
 import * as ContextMenu from "@radix-ui/react-context-menu";
-import { useHostStore, Host, HostGroup } from "../../store/hostStore";
+import { useHostStore, Host } from "../../store/hostStore";
 import { useSessionStore } from "../../store/sessionStore";
 import HostEditor from "../ui/HostEditor";
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const { hosts, groups, fetchHosts, fetchGroups, selectHost, deleteHost } =
-    useHostStore();
+  const { hosts, groups, fetchHosts, fetchGroups, deleteHost } = useHostStore();
   const { createSession } = useSessionStore();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [isResizing, setIsResizing] = useState(false);
-  const [width, setWidth] = useState(240);
+  const [width, setWidth] = useState(280);
   const [isHostEditorOpen, setIsHostEditorOpen] = useState(false);
   const [editingHost, setEditingHost] = useState<Host | null>(null);
 
@@ -67,7 +65,7 @@ export default function Sidebar() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isResizing) {
-        const newWidth = Math.max(180, Math.min(400, e.clientX));
+        const newWidth = Math.max(200, Math.min(400, e.clientX));
         setWidth(newWidth);
       }
     };
@@ -89,45 +87,42 @@ export default function Sidebar() {
 
   return (
     <div
-      className="relative flex-shrink-0 bg-sidebar dark:bg-sidebar-dark border-r border-border dark:border-border-dark"
+      className="relative flex-shrink-0 glass border-r border-white/10"
       style={{ width }}
     >
-      {/* Header */}
-      <div className="h-10 flex items-center justify-between px-3 border-b border-border dark:border-border-dark">
-        <span className="text-sm font-semibold text-text-primary dark:text-text-primary-dark">
+      <div className="h-14 flex items-center justify-between px-4 border-b border-white/10">
+        <span className="text-sm font-semibold text-white">
           Servers
         </span>
         <button
           onClick={handleAddServer}
-          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+          className="p-2 hover:bg-white/10 rounded-lg transition-all"
           title="Add server"
         >
-          <Plus className="w-4 h-4 text-text-secondary" />
+          <Plus className="w-4 h-4 text-accent" />
         </button>
       </div>
 
-      {/* Host list */}
-      <div className="overflow-y-auto h-[calc(100%-40px)]">
+      <div className="overflow-y-auto h-[calc(100%-56px)]">
         <Accordion.Root
           type="multiple"
           value={expandedGroups}
           onValueChange={setExpandedGroups}
-          className="p-2"
+          className="p-3"
         >
-          {/* Grouped hosts */}
           {groupedHosts.map((group) => (
-            <Accordion.Item key={group.id} value={group.id}>
+            <Accordion.Item key={group.id} value={group.id} className="mb-2">
               <Accordion.Header>
-                <Accordion.Trigger className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-text-primary dark:text-text-primary-dark hover:bg-gray-200 dark:hover:bg-gray-700 rounded group">
-                  <ChevronRight className="w-4 h-4 text-text-secondary transition-transform group-data-[state=open]:rotate-90" />
-                  <Folder className="w-4 h-4 text-text-secondary" />
-                  <span className="flex-1 text-left truncate">{group.name}</span>
-                  <span className="text-xs text-text-secondary">
+                <Accordion.Trigger className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-white hover:bg-white/5 rounded-lg transition-all">
+                  <ChevronRight className="w-4 h-4 text-text-secondary transition-transform data-[state=open]:rotate-90" />
+                  <Folder className="w-4 h-4 text-warning" />
+                  <span className="flex-1 text-left truncate font-medium">{group.name}</span>
+                  <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full text-text-secondary">
                     {group.hosts.length}
                   </span>
                 </Accordion.Trigger>
               </Accordion.Header>
-              <Accordion.Content className="pl-4">
+              <Accordion.Content className="pl-4 mt-1">
                 {group.hosts.map((host) => (
                   <HostItem
                     key={host.id}
@@ -141,7 +136,6 @@ export default function Sidebar() {
             </Accordion.Item>
           ))}
 
-          {/* Ungrouped hosts */}
           {ungroupedHosts.map((host) => (
             <HostItem
               key={host.id}
@@ -153,28 +147,27 @@ export default function Sidebar() {
           ))}
         </Accordion.Root>
 
-        {/* Empty state */}
         {hosts.length === 0 && (
-          <div className="flex flex-col items-center justify-center p-6 text-center">
-            <Server className="w-12 h-12 text-text-secondary mb-3" />
-            <p className="text-sm text-text-secondary">No servers yet</p>
+          <div className="flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+              <Server className="w-8 h-8 text-text-secondary" />
+            </div>
+            <p className="text-sm text-text-secondary mb-4">No servers yet</p>
             <button
               onClick={handleAddServer}
-              className="mt-3 btn-primary text-sm"
+              className="btn-primary text-sm"
             >
-              Add Server
+              Add Your First Server
             </button>
           </div>
         )}
       </div>
 
-      {/* Resize handle */}
       <div
-        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-accent/50 transition-colors"
+        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-accent transition-colors"
         onMouseDown={handleMouseDown}
       />
 
-      {/* Host Editor Dialog */}
       <HostEditor
         host={editingHost}
         isOpen={isHostEditorOpen}
@@ -197,39 +190,43 @@ function HostItem({ host, onConnect, onEdit, onDelete }: HostItemProps) {
       <ContextMenu.Trigger asChild>
         <button
           onDoubleClick={onConnect}
-          className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-text-primary dark:text-text-primary-dark hover:bg-gray-200 dark:hover:bg-gray-700 rounded group"
+          className="flex items-center gap-3 w-full px-3 py-2.5 mb-1 text-sm text-white hover:bg-white/5 rounded-lg transition-all group"
         >
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: host.color || "#0A84FF" }}
+          />
           <Server className="w-4 h-4 text-text-secondary" />
           <span className="flex-1 text-left truncate">{host.name}</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
             }}
-            className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-opacity"
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
           >
-            <MoreHorizontal className="w-4 h-4 text-text-secondary" />
+            <MoreHorizontal className="w-3.5 h-3.5 text-text-secondary" />
           </button>
         </button>
       </ContextMenu.Trigger>
 
       <ContextMenu.Portal>
-        <ContextMenu.Content className="min-w-[160px] bg-white dark:bg-gray-800 rounded-macos shadow-macos p-1 border border-gray-200 dark:border-gray-700 animate-scale-in">
+        <ContextMenu.Content className="min-w-[180px] glass-card p-2 shadow-glass-lg animate-scale-in">
           <ContextMenu.Item
             onClick={onConnect}
-            className="flex items-center px-3 py-1.5 text-sm text-text-primary dark:text-text-primary-dark hover:bg-accent hover:text-white rounded cursor-pointer outline-none"
+            className="flex items-center px-3 py-2 text-sm text-white hover:bg-white/10 rounded-lg cursor-pointer outline-none transition-all"
           >
             Connect
           </ContextMenu.Item>
           <ContextMenu.Item
             onClick={onEdit}
-            className="flex items-center px-3 py-1.5 text-sm text-text-primary dark:text-text-primary-dark hover:bg-accent hover:text-white rounded cursor-pointer outline-none"
+            className="flex items-center px-3 py-2 text-sm text-white hover:bg-white/10 rounded-lg cursor-pointer outline-none transition-all"
           >
             Edit
           </ContextMenu.Item>
-          <ContextMenu.Separator className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+          <div className="h-px bg-white/10 my-1" />
           <ContextMenu.Item
             onClick={onDelete}
-            className="flex items-center px-3 py-1.5 text-sm text-error hover:bg-error hover:text-white rounded cursor-pointer outline-none"
+            className="flex items-center px-3 py-2 text-sm text-error hover:bg-error/20 rounded-lg cursor-pointer outline-none transition-all"
           >
             Delete
           </ContextMenu.Item>

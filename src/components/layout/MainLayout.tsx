@@ -12,31 +12,24 @@ interface MainLayoutProps {
 export default function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation();
 
-  // Show snippet sidebar on terminal and sftp pages
   const showSnippetSidebar = location.pathname.startsWith("/terminal") ||
                              location.pathname.startsWith("/sftp");
 
   return (
     <div className="flex flex-col h-full">
-      {/* Title bar (macOS style) */}
       <TitleBar />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
         <Sidebar />
 
-        {/* Main content area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Tab bar for sessions */}
           <TabBar />
 
-          {/* Content */}
-          <main className="flex-1 overflow-auto bg-white dark:bg-gray-900 flex">
+          <main className="flex-1 overflow-hidden flex">
             <div className="flex-1 overflow-auto">
               {children}
             </div>
 
-            {/* Snippet Sidebar (conditional) */}
             {showSnippetSidebar && <SnippetSidebar />}
           </main>
         </div>
