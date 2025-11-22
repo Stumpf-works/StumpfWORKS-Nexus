@@ -6,7 +6,7 @@
 use super::{SftpClient, SftpError};
 use crate::ssh::{SshClient, SshConfig};
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 use std::collections::HashMap;
 use uuid::Uuid;
 

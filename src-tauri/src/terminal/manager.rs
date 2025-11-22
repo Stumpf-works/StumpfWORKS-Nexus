@@ -3,7 +3,7 @@
 use super::{TerminalError, TerminalEvent, TerminalInfo};
 use crate::ssh::{SshConfig, SshClient};
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 use std::collections::HashMap;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;

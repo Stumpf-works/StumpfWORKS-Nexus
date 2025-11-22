@@ -17,7 +17,7 @@ pub use crypto::{DataSphereCrypto, EncryptedData, VaultFile};
 pub use models::*;
 pub use storage::DataSphereStorage;
 
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
 use tauri::AppHandle;
 

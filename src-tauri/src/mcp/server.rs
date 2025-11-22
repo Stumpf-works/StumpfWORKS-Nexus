@@ -2,9 +2,8 @@
 
 use super::{
     permissions::{PermissionManager, PermissionResult, ApprovalRequest},
-    McpAbility, McpConfig, McpError, McpRequest, McpResponse, AiProvider,
+    McpAbility, McpConfig, McpError, McpRequest, McpResponse,
 };
-use parking_lot::RwLock;
 use std::collections::VecDeque;
 use uuid::Uuid;
 

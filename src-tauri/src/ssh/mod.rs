@@ -8,7 +8,7 @@ mod client;
 pub use client::{SshClient, SshConfig, SshError, AuthMethod, CommandOutput};
 
 use std::collections::HashMap;
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
 use uuid::Uuid;
 
