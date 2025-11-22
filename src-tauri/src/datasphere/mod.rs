@@ -25,9 +25,9 @@ use tauri::AppHandle;
 static DATASPHERE: Lazy<RwLock<Option<DataSphereStorage>>> = Lazy::new(|| RwLock::new(None));
 
 /// Initialize DataSphere
-pub fn init(app: &AppHandle) -> Result<(), DataSphereError> {
+pub async fn init(app: &AppHandle) -> Result<(), DataSphereError> {
     let storage = DataSphereStorage::new(app)?;
-    *DATASPHERE.write() = Some(storage);
+    *DATASPHERE.write().await = Some(storage);
     tracing::info!("DataSphere initialized");
     Ok(())
 }

@@ -10,7 +10,7 @@ pub async fn connect(config: SshConfig) -> Result<Uuid, SshError> {
     client.connect().await?;
 
     let id = client.id;
-    clients().write().insert(id, client);
+    clients().write().await.insert(id, client);
 
     Ok(id)
 }
@@ -20,7 +20,7 @@ pub async fn connect(config: SshConfig) -> Result<Uuid, SshError> {
 pub async fn disconnect(session_id: Uuid) -> Result<(), SshError> {
     // Remove client from map first, then disconnect
     // This avoids holding the lock across await
-    let client = clients().write().remove(&session_id);
+    let client = clients().write().await.remove(&session_id);
 
     if let Some(mut client) = client {
         client.disconnect().await?;
@@ -35,14 +35,14 @@ pub async fn send_command(session_id: Uuid, command: String) -> Result<CommandOu
     // Take client out, execute, then put back
     // This avoids holding lock across await
     let mut client = clients()
-        .write()
+        .write().await
         .remove(&session_id)
         .ok_or(SshError::NotConnected)?;
 
     let result = client.execute(&command).await;
 
     // Put the client back
-    clients().write().insert(session_id, client);
+    clients().write().await.insert(session_id, client);
 
     result
 }

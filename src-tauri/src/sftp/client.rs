@@ -5,9 +5,9 @@
 //! implemented once russh Channel<->russh-sftp integration is resolved.
 
 use super::{FileEntry, SftpError, TransferProgress};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use std::path::Path;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
 use tokio::sync::mpsc;
 
 /// SFTP Client for file operations

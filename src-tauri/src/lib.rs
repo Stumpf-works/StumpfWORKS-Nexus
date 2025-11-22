@@ -40,12 +40,15 @@ pub fn run() {
         .setup(|app| {
             info!("Application setup complete");
 
-            // Initialize DataSphere
+            // Initialize DataSphere and Session Manager
             let app_handle = app.handle().clone();
-            datasphere::init(&app_handle)?;
+            tauri::async_runtime::block_on(async move {
+                datasphere::init(&app_handle).await?;
+                Ok::<(), Box<dyn std::error::Error>>(())
+            })?;
 
             // Initialize Session Manager
-            session::init(&app_handle)?;
+            session::init(&app.handle().clone())?;
 
             Ok(())
         })

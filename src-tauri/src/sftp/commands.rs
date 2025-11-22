@@ -15,7 +15,7 @@ pub async fn connect_sftp(
     tracing::info!("Connecting SFTP session {} to {}", session_id, host_name);
 
     // Get or create session
-    let mut manager = manager().write();
+    let mut manager = manager().write().await;
 
     if !manager.get_session(session_id).is_some() {
         manager.create_session_with_id(session_id, host_id, host_name.clone());
@@ -37,7 +37,7 @@ pub async fn connect_sftp(
 pub async fn disconnect_sftp(session_id: Uuid) -> Result<(), SftpError> {
     tracing::info!("Disconnecting SFTP session {}", session_id);
 
-    let mut manager = manager().write();
+    let mut manager = manager().write().await;
 
     if let Some(mut session) = manager.close_session(session_id) {
         session.disconnect().await?;
@@ -51,7 +51,7 @@ pub async fn disconnect_sftp(session_id: Uuid) -> Result<(), SftpError> {
 pub async fn list_directory(session_id: Uuid, path: String) -> Result<Vec<FileEntry>, SftpError> {
     tracing::info!("Listing directory: {} for session {}", path, session_id);
 
-    let mut manager = manager().write();
+    let mut manager = manager().write().await;
     let session = manager
         .get_session_mut(session_id)
         .ok_or(SftpError::NotConnected)?;
@@ -74,7 +74,7 @@ pub async fn upload_file(
         session_id
     );
 
-    let mut manager = manager().write();
+    let mut manager = manager().write().await;
     let session = manager
         .get_session_mut(session_id)
         .ok_or(SftpError::NotConnected)?;
@@ -97,7 +97,7 @@ pub async fn download_file(
         session_id
     );
 
-    let mut manager = manager().write();
+    let mut manager = manager().write().await;
     let session = manager
         .get_session_mut(session_id)
         .ok_or(SftpError::NotConnected)?;
@@ -111,7 +111,7 @@ pub async fn download_file(
 pub async fn delete_path(session_id: Uuid, path: String, is_dir: bool) -> Result<(), SftpError> {
     tracing::info!("Deleting {} for session {}", path, session_id);
 
-    let mut manager = manager().write();
+    let mut manager = manager().write().await;
     let session = manager
         .get_session_mut(session_id)
         .ok_or(SftpError::NotConnected)?;
@@ -130,7 +130,7 @@ pub async fn delete_path(session_id: Uuid, path: String, is_dir: bool) -> Result
 pub async fn create_directory(session_id: Uuid, path: String) -> Result<(), SftpError> {
     tracing::info!("Creating directory {} for session {}", path, session_id);
 
-    let mut manager = manager().write();
+    let mut manager = manager().write().await;
     let session = manager
         .get_session_mut(session_id)
         .ok_or(SftpError::NotConnected)?;

@@ -6,13 +6,13 @@ use uuid::Uuid;
 /// Get all active sessions
 #[tauri::command]
 pub fn get_sessions() -> Vec<Session> {
-    manager().read().get_sessions()
+    manager().read().await.get_sessions()
 }
 
 /// Create a new session
 #[tauri::command]
 pub fn create_session(host_id: Uuid, name: String) -> Session {
-    manager().write().create_session(host_id, name)
+    manager().write().await.create_session(host_id, name)
 }
 
 /// Close a session

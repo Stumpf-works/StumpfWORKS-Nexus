@@ -8,7 +8,7 @@ use tauri::AppHandle;
 /// Create a new terminal session
 #[tauri::command]
 pub fn create_terminal(host_id: Uuid, host_name: String) -> TerminalInfo {
-    manager().write().create_session(host_id, host_name)
+    manager().write().await.create_session(host_id, host_name)
 }
 
 /// Get terminal session info
@@ -23,7 +23,7 @@ pub fn get_terminal(session_id: Uuid) -> Result<TerminalInfo, TerminalError> {
 /// Get all terminal sessions
 #[tauri::command]
 pub fn get_terminals() -> Vec<TerminalInfo> {
-    manager().read().get_sessions()
+    manager().read().await.get_sessions()
 }
 
 /// Connect terminal to SSH
@@ -58,10 +58,10 @@ pub async fn connect_terminal(
     };
 
     // Check if terminal session exists, create if not
-    let session_exists = manager().read().get_session(session_id).is_some();
+    let session_exists = manager().read().await.get_session(session_id).is_some();
     if !session_exists {
         // Create a new terminal session with the same ID
-        let mut mgr = manager().write();
+        let mut mgr = manager().write().await;
         mgr.create_session_with_id(session_id, session_id, host);
     }
 
@@ -74,7 +74,7 @@ pub async fn connect_terminal(
     let result = session.connect(config, app).await;
 
     // Put session back
-    manager().write().insert_session(session_id, session);
+    manager().write().await.insert_session(session_id, session);
 
     result
 }
@@ -91,7 +91,7 @@ pub async fn write_terminal(session_id: Uuid, data: String) -> Result<(), Termin
     let result = session.write(data.as_bytes()).await;
 
     // Put session back
-    manager().write().insert_session(session_id, session);
+    manager().write().await.insert_session(session_id, session);
 
     result
 }
@@ -108,7 +108,7 @@ pub async fn resize_terminal(session_id: Uuid, cols: u32, rows: u32) -> Result<(
     let result = session.resize(cols, rows).await;
 
     // Put session back
-    manager().write().insert_session(session_id, session);
+    manager().write().await.insert_session(session_id, session);
 
     result
 }
