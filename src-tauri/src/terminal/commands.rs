@@ -7,22 +7,22 @@ use tauri::AppHandle;
 
 /// Create a new terminal session
 #[tauri::command]
-pub fn create_terminal(host_id: Uuid, host_name: String) -> TerminalInfo {
+pub async fn create_terminal(host_id: Uuid, host_name: String) -> TerminalInfo {
     manager().write().await.create_session(host_id, host_name)
 }
 
 /// Get terminal session info
 #[tauri::command]
-pub fn get_terminal(session_id: Uuid) -> Result<TerminalInfo, TerminalError> {
+pub async fn get_terminal(session_id: Uuid) -> Result<TerminalInfo, TerminalError> {
     manager()
         .read()
-        .get_session(session_id)
+        .await.get_session(session_id)
         .ok_or_else(|| TerminalError::SessionNotFound(session_id.to_string()))
 }
 
 /// Get all terminal sessions
 #[tauri::command]
-pub fn get_terminals() -> Vec<TerminalInfo> {
+pub async fn get_terminals() -> Vec<TerminalInfo> {
     manager().read().await.get_sessions()
 }
 
@@ -68,7 +68,7 @@ pub async fn connect_terminal(
     // Take session out to avoid holding lock across await
     let mut session = manager()
         .write()
-        .close_session(session_id)
+        .await.close_session(session_id)
         .ok_or_else(|| TerminalError::SessionNotFound(session_id.to_string()))?;
 
     let result = session.connect(config, app).await;
@@ -85,7 +85,7 @@ pub async fn write_terminal(session_id: Uuid, data: String) -> Result<(), Termin
     // Take session out to avoid holding lock across await
     let mut session = manager()
         .write()
-        .close_session(session_id)
+        .await.close_session(session_id)
         .ok_or_else(|| TerminalError::SessionNotFound(session_id.to_string()))?;
 
     let result = session.write(data.as_bytes()).await;
@@ -102,7 +102,7 @@ pub async fn resize_terminal(session_id: Uuid, cols: u32, rows: u32) -> Result<(
     // Take session out to avoid holding lock across await
     let mut session = manager()
         .write()
-        .close_session(session_id)
+        .await.close_session(session_id)
         .ok_or_else(|| TerminalError::SessionNotFound(session_id.to_string()))?;
 
     let result = session.resize(cols, rows).await;
@@ -118,7 +118,7 @@ pub async fn resize_terminal(session_id: Uuid, cols: u32, rows: u32) -> Result<(
 pub async fn close_terminal(session_id: Uuid) -> Result<(), TerminalError> {
     let mut session = manager()
         .write()
-        .close_session(session_id)
+        .await.close_session(session_id)
         .ok_or_else(|| TerminalError::SessionNotFound(session_id.to_string()))?;
 
     session.disconnect().await

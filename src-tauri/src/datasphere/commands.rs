@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 /// Get all hosts
 #[tauri::command]
-pub fn get_hosts() -> Result<Vec<Host>, DataSphereError> {
+pub async fn get_hosts() -> Result<Vec<Host>, DataSphereError> {
     let storage = storage().read().await;
     let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
     Ok(storage.get_hosts())
@@ -13,7 +13,7 @@ pub fn get_hosts() -> Result<Vec<Host>, DataSphereError> {
 
 /// Add a new host
 #[tauri::command]
-pub fn add_host(host: NewHost) -> Result<Host, DataSphereError> {
+pub async fn add_host(host: NewHost) -> Result<Host, DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     let host = Host::from_new(host);
@@ -22,7 +22,7 @@ pub fn add_host(host: NewHost) -> Result<Host, DataSphereError> {
 
 /// Update an existing host
 #[tauri::command]
-pub fn update_host(host: Host) -> Result<Host, DataSphereError> {
+pub async fn update_host(host: Host) -> Result<Host, DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.update_host(host)
@@ -30,7 +30,7 @@ pub fn update_host(host: Host) -> Result<Host, DataSphereError> {
 
 /// Delete a host
 #[tauri::command]
-pub fn delete_host(id: Uuid) -> Result<(), DataSphereError> {
+pub async fn delete_host(id: Uuid) -> Result<(), DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.delete_host(id)
@@ -38,7 +38,7 @@ pub fn delete_host(id: Uuid) -> Result<(), DataSphereError> {
 
 /// Get all host groups
 #[tauri::command]
-pub fn get_host_groups() -> Result<Vec<HostGroup>, DataSphereError> {
+pub async fn get_host_groups() -> Result<Vec<HostGroup>, DataSphereError> {
     let storage = storage().read().await;
     let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
     Ok(storage.get_groups())
@@ -46,7 +46,7 @@ pub fn get_host_groups() -> Result<Vec<HostGroup>, DataSphereError> {
 
 /// Get all snippets
 #[tauri::command]
-pub fn get_snippets() -> Result<Vec<Snippet>, DataSphereError> {
+pub async fn get_snippets() -> Result<Vec<Snippet>, DataSphereError> {
     let storage = storage().read().await;
     let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
     Ok(storage.get_snippets())
@@ -54,7 +54,7 @@ pub fn get_snippets() -> Result<Vec<Snippet>, DataSphereError> {
 
 /// Add a new snippet
 #[tauri::command]
-pub fn add_snippet(snippet: Snippet) -> Result<Snippet, DataSphereError> {
+pub async fn add_snippet(snippet: Snippet) -> Result<Snippet, DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.add_snippet(snippet)
@@ -62,7 +62,7 @@ pub fn add_snippet(snippet: Snippet) -> Result<Snippet, DataSphereError> {
 
 /// Update an existing snippet
 #[tauri::command]
-pub fn update_snippet(snippet: Snippet) -> Result<Snippet, DataSphereError> {
+pub async fn update_snippet(snippet: Snippet) -> Result<Snippet, DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.update_snippet(snippet)
@@ -70,7 +70,7 @@ pub fn update_snippet(snippet: Snippet) -> Result<Snippet, DataSphereError> {
 
 /// Delete a snippet
 #[tauri::command]
-pub fn delete_snippet(id: Uuid) -> Result<(), DataSphereError> {
+pub async fn delete_snippet(id: Uuid) -> Result<(), DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.delete_snippet(id)
@@ -78,7 +78,7 @@ pub fn delete_snippet(id: Uuid) -> Result<(), DataSphereError> {
 
 /// Get application settings
 #[tauri::command]
-pub fn get_settings() -> Result<Settings, DataSphereError> {
+pub async fn get_settings() -> Result<Settings, DataSphereError> {
     let storage = storage().read().await;
     let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
     Ok(storage.get_settings())
@@ -86,7 +86,7 @@ pub fn get_settings() -> Result<Settings, DataSphereError> {
 
 /// Update application settings
 #[tauri::command]
-pub fn update_settings(settings: Settings) -> Result<Settings, DataSphereError> {
+pub async fn update_settings(settings: Settings) -> Result<Settings, DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.update_settings(settings)
@@ -96,7 +96,7 @@ pub fn update_settings(settings: Settings) -> Result<Settings, DataSphereError> 
 
 /// Get all vault entries
 #[tauri::command]
-pub fn get_vault_entries() -> Result<Vec<VaultEntry>, DataSphereError> {
+pub async fn get_vault_entries() -> Result<Vec<VaultEntry>, DataSphereError> {
     let storage = storage().read().await;
     let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
     Ok(storage.get_vault_entries())
@@ -104,7 +104,7 @@ pub fn get_vault_entries() -> Result<Vec<VaultEntry>, DataSphereError> {
 
 /// Get a specific vault entry by ID
 #[tauri::command]
-pub fn get_vault_entry(id: Uuid) -> Result<Option<VaultEntry>, DataSphereError> {
+pub async fn get_vault_entry(id: Uuid) -> Result<Option<VaultEntry>, DataSphereError> {
     let storage = storage().read().await;
     let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
     Ok(storage.get_vault_entry(id))
@@ -112,7 +112,7 @@ pub fn get_vault_entry(id: Uuid) -> Result<Option<VaultEntry>, DataSphereError> 
 
 /// Add a new vault entry
 #[tauri::command]
-pub fn add_vault_entry(entry: NewVaultEntry) -> Result<VaultEntry, DataSphereError> {
+pub async fn add_vault_entry(entry: NewVaultEntry) -> Result<VaultEntry, DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
 
@@ -137,7 +137,7 @@ pub fn add_vault_entry(entry: NewVaultEntry) -> Result<VaultEntry, DataSphereErr
 
 /// Update an existing vault entry
 #[tauri::command]
-pub fn update_vault_entry(entry: VaultEntry) -> Result<VaultEntry, DataSphereError> {
+pub async fn update_vault_entry(entry: VaultEntry) -> Result<VaultEntry, DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.update_vault_entry(entry)
@@ -145,7 +145,7 @@ pub fn update_vault_entry(entry: VaultEntry) -> Result<VaultEntry, DataSphereErr
 
 /// Delete a vault entry
 #[tauri::command]
-pub fn delete_vault_entry(id: Uuid) -> Result<(), DataSphereError> {
+pub async fn delete_vault_entry(id: Uuid) -> Result<(), DataSphereError> {
     let mut storage = storage().write().await;
     let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
     storage.delete_vault_entry(id)
@@ -153,7 +153,7 @@ pub fn delete_vault_entry(id: Uuid) -> Result<(), DataSphereError> {
 
 /// Search vault entries
 #[tauri::command]
-pub fn search_vault(query: String) -> Result<Vec<VaultEntry>, DataSphereError> {
+pub async fn search_vault(query: String) -> Result<Vec<VaultEntry>, DataSphereError> {
     let storage = storage().read().await;
     let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
     Ok(storage.search_vault(&query))
@@ -161,7 +161,7 @@ pub fn search_vault(query: String) -> Result<Vec<VaultEntry>, DataSphereError> {
 
 /// Get all vault folders
 #[tauri::command]
-pub fn get_vault_folders() -> Result<Vec<String>, DataSphereError> {
+pub async fn get_vault_folders() -> Result<Vec<String>, DataSphereError> {
     let storage = storage().read().await;
     let storage = storage.as_ref().ok_or(DataSphereError::NotInitialized)?;
     Ok(storage.get_vault_folders())
