@@ -1,4 +1,7 @@
 //! SFTP Session Manager
+//!
+//! NOTE: Real SFTP integration pending due to russh-sftp API compatibility issues.
+//! Currently uses mock implementation for development.
 
 use super::{SftpClient, SftpError};
 use crate::ssh::{SshClient, SshConfig};
@@ -52,8 +55,9 @@ impl SftpSession {
     }
 
     /// Connect to SSH and initialize SFTP subsystem
+    /// TODO: Real SFTP integration pending
     pub async fn connect(&mut self, config: SshConfig) -> Result<(), SftpError> {
-        tracing::info!("Connecting SFTP session to {}:{}", config.host, config.port);
+        tracing::info!("Connecting SFTP session to {}:{} (mock mode)", config.host, config.port);
 
         // Create and connect SSH client
         let mut ssh_client = SshClient::new(config);
@@ -62,26 +66,14 @@ impl SftpSession {
             .await
             .map_err(|e| SftpError::Ssh(e.to_string()))?;
 
-        // Open SFTP subsystem channel
-        let channel = ssh_client
-            .open_channel()
-            .await
-            .map_err(|e| SftpError::Ssh(e.to_string()))?;
-
-        // Request SFTP subsystem
-        channel
-            .request_subsystem(true, "sftp")
-            .await
-            .map_err(|e| SftpError::Ssh(e.to_string()))?;
-
-        // Initialize SFTP client
+        // Initialize SFTP client (mock mode - no channel needed for now)
         let mut sftp_client = SftpClient::new();
-        sftp_client.connect(channel).await?;
+        sftp_client.connect().await?;
 
         self.ssh_client = Some(ssh_client);
         self.sftp_client = Some(sftp_client);
 
-        tracing::info!("SFTP session connected successfully");
+        tracing::info!("SFTP session connected successfully (mock mode)");
         Ok(())
     }
 
