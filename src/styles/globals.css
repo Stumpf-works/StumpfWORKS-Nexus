@@ -114,16 +114,21 @@
   .nav-item {
     @apply flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary
            hover:bg-white/5 hover:text-text-primary transition-all duration-200
-           relative overflow-hidden group;
+           relative overflow-hidden;
   }
 
   .nav-item-active {
-    @apply nav-item bg-white/10 text-text-primary shadow-inner;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-text-primary
+           bg-white/10 shadow-inner relative overflow-hidden;
   }
 
   .nav-item::before {
     @apply content-[''] absolute inset-0 bg-gradient-to-r from-accent/0 via-accent/5 to-accent/0
-           translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700;
+           translate-x-[-100%] transition-transform duration-700;
+  }
+
+  .nav-item:hover::before {
+    transform: translateX(100%);
   }
 
   .panel-header {
@@ -135,11 +140,15 @@
   }
 
   .stat-card {
-    @apply glass-panel flex items-center gap-4 hover:border-accent/30 transition-all duration-300 cursor-pointer group;
+    @apply glass-panel flex items-center gap-4 hover:border-accent/30 transition-all duration-300 cursor-pointer;
   }
 
   .stat-card-icon {
-    @apply w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br transition-all duration-300 group-hover:scale-110;
+    @apply w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br transition-all duration-300;
+  }
+
+  .stat-card:hover .stat-card-icon {
+    transform: scale(1.1);
   }
 
   .glow-accent {
