@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Switch from "@radix-ui/react-switch";
 import * as Select from "@radix-ui/react-select";
@@ -14,14 +14,98 @@ import {
   Sun,
   Laptop,
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { showToast } from "../ui/Toast";
 import { useThemeStore } from "../../store/themeStore";
+
+interface Settings {
+  theme: string;
+  font_size: number;
+  font_family: string;
+  terminal_cursor_style: string;
+  terminal_cursor_blink: boolean;
+  auto_reconnect: boolean;
+  show_latency: boolean;
+  sync_enabled: boolean;
+  sync_provider: any | null;
+}
 
 export default function Settings() {
   const { theme, setTheme } = useThemeStore();
   const [fontSize, setFontSize] = useState(14);
+  const [fontFamily, setFontFamily] = useState("JetBrains Mono");
   const [cursorBlink, setCursorBlink] = useState(true);
   const [autoReconnect, setAutoReconnect] = useState(true);
   const [showLatency, setShowLatency] = useState(true);
+  const [syncEnabled, setSyncEnabled] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load settings from backend
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await invoke<Settings>("get_settings");
+      setFontSize(settings.font_size);
+      setFontFamily(settings.font_family);
+      setCursorBlink(settings.terminal_cursor_blink);
+      setAutoReconnect(settings.auto_reconnect);
+      setShowLatency(settings.show_latency);
+      setSyncEnabled(settings.sync_enabled);
+      setIsLoaded(true);
+    } catch (error) {
+      console.error("Failed to load settings:", error);
+      showToast("Failed to load settings", "error");
+    }
+  };
+
+  const saveSettings = async (updates: Partial<Settings>) => {
+    try {
+      const currentSettings = await invoke<Settings>("get_settings");
+      const updatedSettings = { ...currentSettings, ...updates };
+      await invoke("update_settings", { settings: updatedSettings });
+      showToast("Settings saved", "success");
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      showToast("Failed to save settings", "error");
+    }
+  };
+
+  const handleFontSizeChange = (value: string) => {
+    const size = Number(value);
+    setFontSize(size);
+    saveSettings({ font_size: size });
+  };
+
+  const handleCursorBlinkChange = (checked: boolean) => {
+    setCursorBlink(checked);
+    saveSettings({ terminal_cursor_blink: checked });
+  };
+
+  const handleAutoReconnectChange = (checked: boolean) => {
+    setAutoReconnect(checked);
+    saveSettings({ auto_reconnect: checked });
+  };
+
+  const handleShowLatencyChange = (checked: boolean) => {
+    setShowLatency(checked);
+    saveSettings({ show_latency: checked });
+  };
+
+  const handleSyncEnabledChange = (checked: boolean) => {
+    setSyncEnabled(checked);
+    saveSettings({ sync_enabled: checked });
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-text-secondary">Loading settings...</div>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: "general", label: "General", icon: Monitor },
@@ -117,7 +201,7 @@ export default function Settings() {
                   </div>
                   <Select.Root
                     value={String(fontSize)}
-                    onValueChange={(v) => setFontSize(Number(v))}
+                    onValueChange={handleFontSizeChange}
                   >
                     <Select.Trigger className="input w-24 flex items-center justify-between">
                       <Select.Value />
@@ -156,19 +240,19 @@ export default function Settings() {
                   label="Cursor Blink"
                   description="Enable blinking cursor in terminal"
                   checked={cursorBlink}
-                  onCheckedChange={setCursorBlink}
+                  onCheckedChange={handleCursorBlinkChange}
                 />
                 <SettingRow
                   label="Auto Reconnect"
                   description="Automatically reconnect on connection loss"
                   checked={autoReconnect}
-                  onCheckedChange={setAutoReconnect}
+                  onCheckedChange={handleAutoReconnectChange}
                 />
                 <SettingRow
                   label="Show Latency"
                   description="Display connection latency in tab bar"
                   checked={showLatency}
-                  onCheckedChange={setShowLatency}
+                  onCheckedChange={handleShowLatencyChange}
                 />
               </div>
             </div>
@@ -200,8 +284,8 @@ export default function Settings() {
                 <SettingRow
                   label="Enable Sync"
                   description="Sync data across devices"
-                  checked={false}
-                  onCheckedChange={() => {}}
+                  checked={syncEnabled}
+                  onCheckedChange={handleSyncEnabledChange}
                 />
               </div>
             </div>
