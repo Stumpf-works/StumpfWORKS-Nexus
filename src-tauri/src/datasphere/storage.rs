@@ -156,6 +156,21 @@ impl DataSphereStorage {
         Ok(snippet)
     }
 
+    pub fn update_snippet(&mut self, snippet: Snippet) -> Result<Snippet, DataSphereError> {
+        if !self.snippets.contains_key(&snippet.id) {
+            return Err(DataSphereError::NotFound(snippet.id.to_string()));
+        }
+        self.snippets.insert(snippet.id, snippet.clone());
+        self.save()?;
+        Ok(snippet)
+    }
+
+    pub fn delete_snippet(&mut self, id: Uuid) -> Result<(), DataSphereError> {
+        self.snippets.remove(&id);
+        self.save()?;
+        Ok(())
+    }
+
     // Settings operations
     pub fn get_settings(&self) -> Settings {
         self.settings.clone()

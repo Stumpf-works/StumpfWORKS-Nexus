@@ -58,6 +58,8 @@ pub fn run() {
             datasphere::commands::get_host_groups,
             datasphere::commands::get_snippets,
             datasphere::commands::add_snippet,
+            datasphere::commands::update_snippet,
+            datasphere::commands::delete_snippet,
             datasphere::commands::get_settings,
             datasphere::commands::update_settings,
             // Vault commands

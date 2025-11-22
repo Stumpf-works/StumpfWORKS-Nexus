@@ -60,6 +60,22 @@ pub fn add_snippet(snippet: Snippet) -> Result<Snippet, DataSphereError> {
     storage.add_snippet(snippet)
 }
 
+/// Update an existing snippet
+#[tauri::command]
+pub fn update_snippet(snippet: Snippet) -> Result<Snippet, DataSphereError> {
+    let mut storage = storage().write();
+    let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
+    storage.update_snippet(snippet)
+}
+
+/// Delete a snippet
+#[tauri::command]
+pub fn delete_snippet(id: Uuid) -> Result<(), DataSphereError> {
+    let mut storage = storage().write();
+    let storage = storage.as_mut().ok_or(DataSphereError::NotInitialized)?;
+    storage.delete_snippet(id)
+}
+
 /// Get application settings
 #[tauri::command]
 pub fn get_settings() -> Result<Settings, DataSphereError> {
