@@ -30,16 +30,20 @@ impl SftpClient {
         for entry in entries_result {
             let metadata = entry.metadata();
             let is_dir = metadata.is_dir();
-            let size = metadata.len().unwrap_or(0);
-            let modified = metadata.modified().map(|t| {
-                chrono::DateTime::from_timestamp(t as i64, 0)
-                    .unwrap_or_else(|| Utc::now())
+            let size = metadata.len();
+
+            let modified = metadata.modified().ok().and_then(|system_time| {
+                system_time
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .ok()
+                    .and_then(|duration| {
+                        chrono::DateTime::from_timestamp(duration.as_secs() as i64, 0)
+                    })
             });
 
-            let permissions = if let Some(perms) = metadata.permissions() {
+            let permissions = {
+                let perms = metadata.permissions();
                 Some(format_permissions(perms.mode(), is_dir))
-            } else {
-                None
             };
 
             entries.push(FileEntry {
@@ -78,23 +82,27 @@ impl SftpClient {
     pub async fn stat(&self, path: &str) -> Result<FileEntry, SftpError> {
         tracing::debug!("Getting stats for: {}", path);
 
-        let attrs = self
+        let metadata = self
             .sftp
             .metadata(path)
             .await
             .map_err(|e| SftpError::PathNotFound(format!("{}: {}", path, e)))?;
 
-        let is_dir = attrs.is_dir();
-        let size = attrs.size.unwrap_or(0);
-        let modified = attrs.mtime.map(|t| {
-            chrono::DateTime::from_timestamp(t as i64, 0)
-                .unwrap_or_else(|| Utc::now())
+        let is_dir = metadata.is_dir();
+        let size = metadata.len();
+
+        let modified = metadata.modified().ok().and_then(|system_time| {
+            system_time
+                .duration_since(std::time::UNIX_EPOCH)
+                .ok()
+                .and_then(|duration| {
+                    chrono::DateTime::from_timestamp(duration.as_secs() as i64, 0)
+                })
         });
 
-        let permissions = if let Some(perms) = attrs.permissions {
-            Some(format_permissions(perms, is_dir))
-        } else {
-            None
+        let permissions = {
+            let perms = metadata.permissions();
+            Some(format_permissions(perms.mode(), is_dir))
         };
 
         let name = Path::new(path)
